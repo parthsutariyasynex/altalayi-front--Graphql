@@ -355,7 +355,7 @@ export default function ProductsPage() {
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{brandName}</p>
             <p className="text-[12px] md:text-[13px] font-black text-gray-900 leading-tight mt-0.5 truncate">{product?.pattern || product?.name || "—"}</p>
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[12px] font-bold text-black">{product?.tyre_size || "—"}</span>
+              <span dir="ltr" className="text-[12px] font-bold text-black">{product?.tyre_size || "—"}</span>
               <div onClick={() => setSelectedProduct(product)} className="w-4 h-4 bg-gray-900 rounded-full flex items-center justify-center text-[9px] font-bold text-white cursor-pointer hover:bg-yellow-400 hover:text-black transition-all shadow-sm active:scale-95 flex-shrink-0">i</div>
               {product?.origin && <span className="text-[11px] text-gray-400 font-normal">{t(`data.${product.origin}`) !== `data.${product.origin}` ? t(`data.${product.origin}`) : product.origin}</span>}
               {product?.year && <span className="text-[11px] text-gray-400 font-mono font-normal">{product.year}</span>}
@@ -379,15 +379,15 @@ export default function ProductsPage() {
             <div className="flex flex-col">
               {product.original_price && product.original_price > product.final_price ? (
                 <>
-                  <span className="text-[10px] font-bold text-gray-400">
-                    <Price amount={product.original_price} className="font-bold line-through" />
+                  <span className="text-[10px] font-medium text-gray-400">
+                    <Price amount={product.original_price} className="font-medium line-through" />
                   </span>
-                  <span className="text-[13px] font-black text-black rubik-sans truncate">
+                  <span className="text-[13px] font-bold text-black rubik-sans truncate">
                     <Price amount={product.final_price} />
                   </span>
                 </>
               ) : (
-                <span className="text-[13px] font-black text-black rubik-sans truncate">
+                <span className="text-[13px] font-bold text-black rubik-sans truncate">
                   <Price amount={product?.final_price || 0} />
                 </span>
               )}
@@ -629,7 +629,7 @@ export default function ProductsPage() {
                         <td className="px-2 md:px-4 text-[12px] font-normal text-gray-700 text-center">{t(`data.${brandName}`) !== `data.${brandName}` ? t(`data.${brandName}`) : brandName}</td>
                         <td className="px-2 md:px-4 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
-                            <span className="text-[12px] font-normal text-gray-900 tracking-tight">{product?.tyre_size}</span>
+                            <span dir="ltr" className="text-[12px] font-normal text-gray-900 tracking-tight">{product?.tyre_size}</span>
                             <div onClick={() => setSelectedProduct(product)} className="w-4 h-4 bg-gray-900 rounded-full flex items-center justify-center text-[9px] font-bold text-white cursor-pointer hover:bg-yellow-400 hover:text-black transition-all shadow-sm flex-shrink-0">i</div>
                           </div>
                         </td>
@@ -654,15 +654,15 @@ export default function ProductsPage() {
                           <div className="flex flex-col items-center justify-center">
                             {product.original_price && product.original_price > product.final_price ? (
                               <>
-                                <span className="text-[10px] font-bold text-gray-400 mb-0.5">
-                                  <Price amount={product.original_price} className="font-bold line-through" />
+                                <span className="text-[10px] font-medium text-gray-400 mb-0.5">
+                                  <Price amount={product.original_price} className="font-medium line-through" />
                                 </span>
-                                <span className="text-[12px] font-black text-black tracking-tight rubik-sans">
+                                <span className="text-[12px] font-bold text-black tracking-tight rubik-sans">
                                   <Price amount={product.final_price} />
                                 </span>
                               </>
                             ) : (
-                              <span className="text-[12px] font-black text-black tracking-tight rubik-sans">
+                              <span className="text-[12px] font-bold text-black tracking-tight rubik-sans">
                                 <Price amount={product?.final_price || 0} />
                               </span>
                             )}
@@ -716,7 +716,7 @@ export default function ProductsPage() {
         <div className="flex flex-col h-full bg-white">
           <div className="bg-[#FFB82B] px-4 md:px-8 py-4 md:py-6 flex items-center justify-center flex-shrink-0">
             <h2 className="text-[14px] md:text-[17px] font-black text-black text-center uppercase tracking-tight">
-              {previewProduct ? `${previewProduct?.pattern || '-'} - ${previewProduct?.tyre_size || '-'}` : t("m.preview")}
+              {previewProduct ? <span dir="ltr">{previewProduct?.pattern || '-'} - {previewProduct?.tyre_size || '-'}</span> : t("m.preview")}
             </h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col items-center justify-center">

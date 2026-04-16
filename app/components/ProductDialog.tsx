@@ -33,7 +33,7 @@ export default function ProductDialog({ product, isOpen, onClose }: ProductDialo
   const details = [
     { label: t("productDialog.itemCode"), value: getAttr("item_code") || p.sku || p.id },
     { label: t("productDialog.brand"), value: translateValue(getAttr("brand") || p.manufacturer || (p.name ? p.name.split(' ')[0] : "")) },
-    { label: t("productDialog.size"), value: getAttr("tyre_size") || p.size },
+    { label: t("productDialog.size"), value: <span dir="ltr">{getAttr("tyre_size") || p.size}</span> },
     { label: t("productDialog.pattern"), value: getAttr("pattern") || p.pattern },
     { label: t("productDialog.year"), value: getAttr("year") || p.model_year },
     { label: t("productDialog.origin"), value: translateValue(getAttr("origin") || p.country_of_manufacture) },
@@ -57,7 +57,7 @@ export default function ProductDialog({ product, isOpen, onClose }: ProductDialo
         {/* Yellow Header */}
         <div className="bg-[#FFB82B] px-4 md:px-8 py-4 md:py-6 flex items-center justify-center relative flex-shrink-0">
           <h2 className="text-[14px] md:text-[17px] font-black text-black text-center tracking-tight">
-            {p.tyre_size || ""} {p.pattern || p.name ? ` - ${p.pattern || p.name}` : ""}
+            <span dir="ltr">{p.tyre_size || ""}</span> {p.pattern || p.name ? ` - ${p.pattern || p.name}` : ""}
           </h2>
         </div>
 

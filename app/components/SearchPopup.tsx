@@ -166,14 +166,14 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
 
                 <div className="flex flex-col gap-0">
                     {/* Search Input */}
-                    <form onSubmit={(e) => handleSearch(e)} className="flex items-stretch gap-0 bg-white border-2 border-[#f5b21a] rounded-xl overflow-hidden shadow-sm h-14 md:h-16 transition-all relative z-20 flex-shrink-0">
+                    <form dir="ltr" onSubmit={(e) => handleSearch(e)} className="flex items-stretch gap-0 bg-white border-2 border-[#f5b21a] rounded-xl overflow-hidden shadow-sm h-14 md:h-16 transition-all relative z-20 flex-shrink-0">
                         <input
                             type="text"
                             autoFocus
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder={t("nav.searchPlaceholder")}
-                            className="flex-1 px-6 md:px-10 text-base md:text-lg font-bold text-black outline-none placeholder:text-[#b2b2b2] placeholder:font-medium bg-transparent min-w-0 ltr:text-left rtl:text-right"
+                            className="flex-1 px-6 md:px-10 text-base md:text-lg font-bold text-black outline-none placeholder:text-[#b2b2b2] placeholder:font-medium bg-transparent min-w-0 text-left"
                         />
                         <button
                             type="submit"
@@ -202,7 +202,7 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
                                     onClick={() => handleSuggestionClick(item)}
                                     className="px-6 md:px-10 py-3.5 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
                                 >
-                                    <span className="text-[15px] font-bold text-black">{item.label}</span>
+                                    <span dir="ltr" className="text-[15px] font-bold text-black">{item.label}</span>
                                 </div>
                             ))}
                         </div>

@@ -70,7 +70,7 @@ export default function InquiryModal({ product, isOpen, onClose }: InquiryModalP
                                     </div>
                                     <div className="space-y-0.5">
                                         <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Size</p>
-                                        <p className="text-xs font-bold text-gray-700">{product.tyre_size}</p>
+                                        <p dir="ltr" className="text-xs font-bold text-gray-700">{product.tyre_size}</p>
                                     </div>
                                     <div className="space-y-0.5">
                                         <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Pattern</p>

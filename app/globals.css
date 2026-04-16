@@ -8,6 +8,12 @@
 
 @import "tailwindcss";
 
+/* Override Tailwind v4 default font-sans to use Rubik for all text */
+@theme {
+  --font-sans: var(--font-rubik), system-ui, sans-serif;
+  --font-rubik: var(--font-rubik), system-ui, sans-serif;
+}
+
 /* Rubik is loaded via next/font in layout.tsx — no @import needed */
 
 @layer base {

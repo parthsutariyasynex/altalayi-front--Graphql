@@ -32,8 +32,9 @@ const FilterItem = memo(({
     const { t } = useTranslation();
     // Translate known filter values (brand, origin, stock) using data.* keys
     const translatedLabel = t(`data.${option.label}`) !== `data.${option.label}` ? t(`data.${option.label}`) : option.label;
+    const isSizeFilter = groupCode === "tyre_size";
     return (
-        <label className="flex items-center justify-between cursor-pointer group/label">
+        <label dir={isSizeFilter ? "ltr" : undefined} className="flex items-center justify-between cursor-pointer group/label">
             <div className="flex items-center gap-3">
                 <div className="relative flex items-center justify-center">
                     <input

@@ -45,7 +45,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                             background: '#fffafaff',
                             color: '#000',
                             fontSize: '9px',
-                            fontWeight: 'black',
+                            fontWeight: 'bold',
                             textTransform: 'uppercase',
                         },
                     });
@@ -63,17 +63,17 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                         <img src={item.image_url || "/images/tyre-sample.png"} alt={item.name} className="max-w-full max-h-full object-contain" />
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
-                        <span className="text-[10px] font-black text-yellow-600 uppercase tracking-widest mb-1 block">{t("quickOrder.title")}</span>
-                        <h3 className="text-sm font-black text-gray-900 leading-tight uppercase tracking-tight line-clamp-2">{item.name}</h3>
+                        <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest mb-1 block">{t("quickOrder.title")}</span>
+                        <h3 className="text-sm font-bold text-gray-900 leading-tight uppercase tracking-tight line-clamp-2">{item.name}</h3>
                         <div className="flex flex-wrap gap-2 mt-3">
                             {item.size_display && (
-                                <div className="text-[10px] font-bold text-gray-500 bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg">
+                                <div dir="ltr" className="text-[10px] font-bold text-gray-500 bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg">
                                     {item.size_display}
                                 </div>
                             )}
                         </div>
                         <div className="mt-4 flex items-center justify-between">
-                            <span className="text-base font-black text-black">
+                            <span className="text-base font-bold text-black">
                                 <Price amount={item.price} />
                             </span>
                         </div>
@@ -88,7 +88,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                         >
                             <Minus size={12} strokeWidth={3} />
                         </button>
-                        <span className="w-10 h-8 flex items-center justify-center text-xs font-black text-black">
+                        <span className="w-10 h-8 flex items-center justify-center text-xs font-bold text-black">
                             {localQty}
                         </span>
                         <button
@@ -100,7 +100,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                     </div>
 
                     <div className="text-right">
-                        <span className="text-sm font-black text-black">
+                        <span className="text-sm font-bold text-black">
                             <Price amount={item.row_total} />
                         </span>
                     </div>
@@ -119,15 +119,15 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                         />
                     </div>
                     <div className="min-w-0">
-                        <h3 className="text-xs xl:text-sm font-black text-gray-900 leading-tight uppercase tracking-tight mb-2 transition-colors group-hover/item:text-black line-clamp-1">{item.name}</h3>
+                        <h3 className="text-xs xl:text-sm font-bold text-gray-900 leading-tight uppercase tracking-tight mb-2 transition-colors group-hover/item:text-black line-clamp-1">{item.name}</h3>
                         <div className="flex flex-wrap gap-1.5 single-line-attributes">
                             {item.size_display && (
-                                <span className="text-[9px] font-black text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded-md uppercase">
-                                    {t("m.size")}: {item.size_display}
+                                <span className="text-[9px] font-bold text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded-md uppercase">
+                                    {t("m.size")}: <span dir="ltr">{item.size_display}</span>
                                 </span>
                             )}
                             {item.pattern_display && (
-                                <span className="text-[9px] font-black text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded-md uppercase">
+                                <span className="text-[9px] font-bold text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded-md uppercase">
                                     {t("m.pattern")}: {item.pattern_display}
                                 </span>
                             )}
@@ -137,7 +137,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
 
                 {/* Price (15%) */}
                 <div className="w-[15%] text-center">
-                    <span className="text-xs xl:text-sm font-black text-gray-900">
+                    <span className="text-xs xl:text-sm font-bold text-gray-900">
                         <Price amount={item.price} />
                     </span>
                 </div>
@@ -153,7 +153,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                             <Minus size={11} strokeWidth={3} />
                         </button>
                         <div className="w-8 h-7 flex items-center justify-center border-x border-gray-50">
-                            <span className="text-xs font-black text-gray-900">{localQty}</span>
+                            <span className="text-xs font-bold text-gray-900">{localQty}</span>
                         </div>
                         <button
                             onClick={() => handleQtyChange(localQty + 1)}
@@ -167,7 +167,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
 
                 {/* Total (20%) */}
                 <div className="w-[20%] text-right pr-4">
-                    <span className="text-sm xl:text-base font-black text-black">
+                    <span className="text-sm xl:text-base font-bold text-black">
                         <Price amount={item.row_total} />
                     </span>
                 </div>

@@ -76,7 +76,7 @@ const CartPage: React.FC = () => {
                     background: '#000',
                     color: '#fff',
                     fontSize: '10px',
-                    fontWeight: 'black',
+                    fontWeight: 'bold',
                     textTransform: 'uppercase',
                     letterSpacing: '0.1em'
                 },
@@ -146,7 +146,7 @@ const CartPage: React.FC = () => {
 
                 {/* Breadcrumbs & Title Section */}
                 <div className="mb-10 md:mb-14 text-center">
-                    <h1 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tight mb-2">
+                    <h1 className="text-xl md:text-2xl font-bold text-gray-900 uppercase tracking-tight mb-2">
                         {t("cart.title")}
                     </h1>
                     <div className="h-1 w-12 bg-yellow-400 mx-auto"></div>
@@ -191,12 +191,12 @@ const CartPage: React.FC = () => {
                                     {/* Multiple Address Section Bar */}
                                     <div className="border border-[#FFC107] bg-white rounded-xl flex flex-col md:flex-row items-stretch justify-between overflow-hidden shadow-xl shadow-yellow-400/5">
                                         <div className="px-6 py-4 flex items-center bg-gray-50/50 flex-1">
-                                            <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-wider">{t("cart.multiAddressShipping")}</h4>
+                                            <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-wider">{t("cart.multiAddressShipping")}</h4>
                                         </div>
                                         <button
                                             onClick={handleStartMultiShipping}
                                             disabled={isStartingMultiShipping}
-                                            className="bg-[#FFC107] text-black font-black py-4 px-10 uppercase tracking-widest text-[10px] hover:bg-black hover:text-white transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto shadow-none"
+                                            className="bg-[#FFC107] text-black font-bold py-4 px-10 uppercase tracking-widest text-[10px] hover:bg-black hover:text-white transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto shadow-none"
                                         >
                                             {isStartingMultiShipping ? (
                                                 <Loader2 className="animate-spin" size={14} />

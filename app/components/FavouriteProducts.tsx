@@ -276,7 +276,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t(`data.${brandName}`) !== `data.${brandName}` ? t(`data.${brandName}`) : brandName}</p>
                                     <p className="text-[12px] font-black text-gray-900 leading-tight mt-0.5 truncate">{product.pattern || product.name || "—"}</p>
                                     <div className="flex items-center gap-1.5 mt-1">
-                                        <span className="text-[12px] font-bold text-black">{product.tyre_size || "—"}</span>
+                                        <span dir="ltr" className="text-[12px] font-bold text-black">{product.tyre_size || "—"}</span>
                                         <div onClick={() => handleShowProductDetail(product)} className="w-4 h-4 bg-gray-900 rounded-full flex items-center justify-center text-[9px] font-bold text-white cursor-pointer active:scale-95 flex-shrink-0">i</div>
                                         {product.origin && <span className="text-[11px] text-gray-400">{t(`data.${product.origin}`) !== `data.${product.origin}` ? t(`data.${product.origin}`) : product.origin}</span>}
                                         {product.year && <span className="text-[11px] text-gray-400 font-mono">{product.year}</span>}
@@ -365,7 +365,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                                             <td className="px-2 md:px-4 text-[12px] font-bold text-gray-900 text-center">{t(`data.${brandName}`) !== `data.${brandName}` ? t(`data.${brandName}`) : brandName}</td>
                                             <td className="px-2 md:px-4 text-center whitespace-nowrap">
                                                 <div className="flex items-center justify-center gap-1.5">
-                                                    <span className="text-[12px] font-bold text-gray-900 tracking-tight">{product.tyre_size}</span>
+                                                    <span dir="ltr" className="text-[12px] font-bold text-gray-900 tracking-tight">{product.tyre_size}</span>
                                                     <div
                                                         onClick={() => handleShowProductDetail(product)}
                                                         className={`w-3.5 h-3.5 bg-gray-900 rounded-full flex items-center justify-center text-[8px] font-black text-white cursor-pointer hover:bg-[#f5a623] hover:text-black transition-all shadow-sm flex-shrink-0`}
@@ -553,7 +553,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                 <div className="flex flex-col h-full bg-white">
                     <div className="bg-[#FFB82B] px-4 md:px-8 py-4 md:py-6 flex items-center justify-center relative flex-shrink-0">
                         <h2 className="text-[14px] md:text-[17px] font-black text-black text-center uppercase tracking-tight">
-                            {previewProduct ? `${previewProduct.pattern || '-'} - ${previewProduct.tyre_size || '-'}` : t("m.preview")}
+                            {previewProduct ? <span dir="ltr">{previewProduct.pattern || '-'} - {previewProduct.tyre_size || '-'}</span> : t("m.preview")}
                         </h2>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col items-center justify-center">
