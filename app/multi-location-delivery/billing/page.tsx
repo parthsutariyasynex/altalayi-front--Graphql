@@ -66,8 +66,12 @@ const MultiShippingBillingPage: React.FC = () => {
         try {
             setIsSubmitting(true);
 
-            // Re-initialize session and re-assign items (session may have expired)
-            await startMultiShipping();
+            // Re-initialize session (non-blocking — session may already be active)
+            try {
+                await startMultiShipping();
+            } catch (startErr) {
+                console.warn("Multi-shipping start warning (non-blocking):", (startErr as Error).message);
+            }
             const savedAssignments = localStorage.getItem('multi_shipping_assignments');
             if (savedAssignments) {
                 const assignments = JSON.parse(savedAssignments);

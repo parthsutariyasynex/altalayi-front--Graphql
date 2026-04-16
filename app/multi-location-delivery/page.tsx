@@ -36,15 +36,15 @@ const MultiLocationDeliveryPage: React.FC = () => {
     const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
-        // Initialize backend multishipping session only if cart has items
-        if (!isCartLoading && cart?.items && cart.items.length > 0) {
-            startMultiShipping().catch(err => {
-                // Magento may reject with "at least two units" for single-item carts
-                // This is not critical — the assign step will still work
-                console.warn("Multi-shipping start warning (non-blocking):", err.message);
-            });
-        }
-    }, [startMultiShipping, cart, isCartLoading]);
+        // Initialize backend multishipping session only once when cart has items
+        if (isInitialized || isCartLoading || !cart?.items || cart.items.length === 0) return;
+        setIsInitialized(true);
+        startMultiShipping().catch(err => {
+            // Magento may reject with "at least two units" for single-item carts
+            // This is not critical — the assign step will still work
+            console.warn("Multi-shipping start warning (non-blocking):", err.message);
+        });
+    }, [startMultiShipping, cart, isCartLoading, isInitialized]);
 
     useEffect(() => {
         refetchCart();

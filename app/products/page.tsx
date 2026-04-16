@@ -478,7 +478,7 @@ export default function ProductsPage() {
             </div>
             <div className="flex-1 overflow-y-auto">
               {/* Render SidebarFilter content directly — override its aside wrapper via CSS */}
-              <div className="[&>aside]:!w-full [&>aside]:!h-auto [&>aside]:!static [&>aside]:!border-0 [&>aside]:!overflow-visible [&>aside>div]:!static [&>aside>div]:!h-auto [&>aside>div>div:first-child]:!hidden">
+              <div className="[&>aside]:!w-full [&>aside]:!h-auto [&>aside]:!static [&>aside]:!border-0 [&>aside]:!overflow-visible [&>aside>div]:!static [&>aside>div]:!h-auto [&>aside>div:first-child]:!hidden">
                 <SidebarFilter onFilterChange={(f, l) => { handleFilterChange(f, l); setIsMobileFilterOpen(false); }} selectedFilters={selectedFilters} isCollapsed={false} setIsCollapsed={() => { }} initialFilters={apiFilters} />
               </div>
             </div>
@@ -701,7 +701,7 @@ export default function ProductsPage() {
         </div>
 
         {/* Desktop bottom search bar */}
-        <div className="hidden xl:flex fixed bottom-0 left-0 right-0 z-[40] bg-white border-t-[4px] border-[#f5a623] shadow-[0_-10px_30px_rgba(0,0,0,0.12)] h-[90px] items-center" style={{ paddingRight: "var(--scrollbar-width)" }}>
+        <div className="hidden xl:flex fixed bottom-0 left-0 right-0 z-[40] bg-white border-t-[4px] border-[#f5a623] shadow-[0_-10px_30px_rgba(0,0,0,0.12)] h-[90px] items-center">
           <div className={`w-full transition-all duration-300 ${isSidebarCollapsed ? "pl-[50px]" : "pl-[300px]"}`}>
             <div className="w-full max-w-[1400px] mx-auto px-4">
               <HorizontalFilter onSearch={handleHorizontalSearch} initialValues={{ width: debouncedFilters["width"]?.[0] || "", height: debouncedFilters["height"]?.[0] || "", rim: debouncedFilters["rim"]?.[0] || "" }} />

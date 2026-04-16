@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -40,6 +41,11 @@ const Popup: React.FC<PopupProps> = ({
     scrollable = true,
 }) => {
     const { isRtl } = useTranslation();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Handle ESC key
     const handleKeyDown = useCallback(
@@ -138,7 +144,9 @@ const Popup: React.FC<PopupProps> = ({
         }
     };
 
-    return (
+    if (!mounted) return null;
+
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <motion.div
@@ -185,7 +193,8 @@ const Popup: React.FC<PopupProps> = ({
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 };
 

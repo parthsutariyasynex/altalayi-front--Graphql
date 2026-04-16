@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect } from "react";
+import { useLayoutEffect } from "react";
 
 /**
  * Reusable hook to lock body scroll when a component (like a modal) is mounted.
@@ -8,29 +8,27 @@ import { useEffect, useLayoutEffect } from "react";
  * 
  * @param lock - boolean to determine if scroll should be locked
  */
+// Track how many consumers currently want the scroll locked
+let lockCount = 0;
+let originalOverflow = "";
+
 export function useLockBodyScroll(lock: boolean = true) {
     useLayoutEffect(() => {
         if (!lock) return;
 
-        // Save original styles
-        const originalStyle = window.getComputedStyle(document.body).overflow;
-        const originalPaddingRight = window.getComputedStyle(document.body).paddingRight;
-
-        // Prevent layout shift by adding padding equal to scrollbar width
-        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
-        document.body.style.overflow = "hidden";
-        if (scrollbarWidth > 0) {
-            document.body.style.paddingRight = `${scrollbarWidth}px`;
+        // First lock: save original overflow and apply hidden
+        if (lockCount === 0) {
+            originalOverflow = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
         }
-
-        // Set global CSS variable for other components (like fixed headers)
-        document.documentElement.style.setProperty("--scrollbar-width", `${scrollbarWidth}px`);
+        lockCount++;
 
         return () => {
-            document.body.style.overflow = originalStyle;
-            document.body.style.paddingRight = originalPaddingRight;
-            document.documentElement.style.setProperty("--scrollbar-width", "0px");
+            lockCount--;
+            // Last unlock: restore original overflow
+            if (lockCount === 0) {
+                document.body.style.overflow = originalOverflow;
+            }
         };
     }, [lock]);
 }
