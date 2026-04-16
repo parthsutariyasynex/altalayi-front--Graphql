@@ -387,29 +387,29 @@ const MultiShippingReviewPage: React.FC = () => {
 
                                 {/* Column 3: Items Table */}
                                 <div className="flex flex-col bg-[#f7f7f7]">
-                                    <div className="p-0 overflow-x-auto flex-grow">
-                                        <table className="w-full text-left border-collapse min-w-[320px]">
+                                    <div className="p-0 flex-grow">
+                                        <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="border-b border-transparent">
-                                                    <th className="py-3 md:py-4 px-3 md:px-6 text-[11px] md:text-[12px] font-black text-black uppercase w-[40%] md:w-[50%]">Item</th>
-                                                    <th className="py-3 md:py-4 px-2 md:px-4 text-[11px] md:text-[12px] font-black text-black uppercase text-right">Price</th>
-                                                    <th className="py-3 md:py-4 px-2 md:px-4 text-[11px] md:text-[12px] font-black text-black uppercase text-right">Qty</th>
-                                                    <th className="py-3 md:py-4 px-3 md:px-6 text-[11px] md:text-[12px] font-black text-black uppercase text-right">Total</th>
+                                                    <th className="py-3 md:py-4 px-2 md:px-4 text-[10px] md:text-[12px] font-black text-black uppercase">{t("item")}</th>
+                                                    <th className="py-3 md:py-4 px-2 md:px-3 text-[10px] md:text-[12px] font-black text-black uppercase text-right">{t("price")}</th>
+                                                    <th className="py-3 md:py-4 px-2 md:px-3 text-[10px] md:text-[12px] font-black text-black uppercase text-center">{t("qty")}</th>
+                                                    <th className="py-3 md:py-4 px-2 md:px-4 text-[10px] md:text-[12px] font-black text-black uppercase text-right">{t("total")}</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-transparent">
                                                 {group.items.map((item) => (
                                                     <tr key={item.itemId}>
-                                                        <td className="py-3 md:py-4 px-3 md:px-6 text-[12px] md:text-[13px] font-medium text-gray-600 align-top uppercase leading-tight">
+                                                        <td className="py-3 md:py-4 px-2 md:px-4 text-[11px] md:text-[13px] font-medium text-gray-600 align-top uppercase leading-tight">
                                                             {item.name}
                                                         </td>
-                                                        <td className="py-3 md:py-4 px-2 md:px-4 text-[12px] md:text-[13px] font-black text-black text-right align-top">
+                                                        <td className="py-3 md:py-4 px-2 md:px-3 text-[11px] md:text-[13px] font-black text-black text-right align-top whitespace-nowrap">
                                                             <Price amount={item.price} />
                                                         </td>
-                                                        <td className="py-3 md:py-4 px-2 md:px-4 text-[12px] md:text-[13px] font-black text-black text-right align-top">
+                                                        <td className="py-3 md:py-4 px-2 md:px-3 text-[11px] md:text-[13px] font-black text-black text-center align-top">
                                                             {item.qty}
                                                         </td>
-                                                        <td className="py-3 md:py-4 px-3 md:px-6 text-[12px] md:text-[13px] font-black text-black text-right align-top">
+                                                        <td className="py-3 md:py-4 px-2 md:px-4 text-[11px] md:text-[13px] font-black text-black text-right align-top whitespace-nowrap">
                                                             <Price amount={item.price * item.qty} />
                                                         </td>
                                                     </tr>
@@ -417,16 +417,16 @@ const MultiShippingReviewPage: React.FC = () => {
                                             </tbody>
                                             <tfoot>
                                                 <tr>
-                                                    <td colSpan={3} className="py-2 px-3 md:px-6 text-right text-[11px] md:text-[12px] font-[900] text-black uppercase">{t("multi.itemsTotal")}</td>
-                                                    <td className="py-2 px-3 md:px-6 text-right text-[11px] md:text-[12px] font-black text-black"><Price amount={itemTotal} /></td>
+                                                    <td colSpan={3} className="py-2 px-2 md:px-4 text-right text-[10px] md:text-[12px] font-[900] text-black uppercase">{t("multi.itemsTotal")}</td>
+                                                    <td className="py-2 px-2 md:px-4 text-right text-[10px] md:text-[12px] font-black text-black whitespace-nowrap"><Price amount={itemTotal} /></td>
                                                 </tr>
                                                 <tr>
-                                                    <td colSpan={3} className="py-2 px-3 md:px-6 text-right text-[11px] md:text-[12px] font-[900] text-black uppercase">{t("multi.vat")}</td>
-                                                    <td className="py-2 px-3 md:px-6 text-right text-[11px] md:text-[12px] font-black text-black"><Price amount={vat} /></td>
+                                                    <td colSpan={3} className="py-2 px-2 md:px-4 text-right text-[10px] md:text-[12px] font-[900] text-black uppercase">{t("multi.vat")}</td>
+                                                    <td className="py-2 px-2 md:px-4 text-right text-[10px] md:text-[12px] font-black text-black whitespace-nowrap"><Price amount={vat} /></td>
                                                 </tr>
                                                 <tr>
-                                                    <td colSpan={3} className="py-4 md:py-6 px-3 md:px-6 text-right text-[12px] md:text-[14px] font-[900] text-black uppercase">{t("multi.totalForAddress")}</td>
-                                                    <td className="py-4 md:py-6 px-3 md:px-6 text-right text-[12px] md:text-[14px] font-black text-black"><Price amount={groupTotal} /></td>
+                                                    <td colSpan={3} className="py-4 md:py-6 px-2 md:px-4 text-right text-[11px] md:text-[14px] font-[900] text-black uppercase">{t("multi.totalForAddress")}</td>
+                                                    <td className="py-4 md:py-6 px-2 md:px-4 text-right text-[11px] md:text-[14px] font-black text-black whitespace-nowrap"><Price amount={groupTotal} /></td>
                                                 </tr>
                                             </tfoot>
                                         </table>

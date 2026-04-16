@@ -105,9 +105,9 @@ const FilterGroup = memo(({
                                 placeholder={`${t("m.search")} ${group.label}...`}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md outline-none"
+                                className="w-full ltr:pl-8 ltr:pr-3 rtl:pr-8 rtl:pl-3 py-1.5 text-xs border border-gray-200 rounded-md outline-none"
                             />
-                            <X className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 cursor-pointer" onClick={() => setSearchTerm("")} />
+                            <X className="absolute ltr:right-2 rtl:left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 cursor-pointer" onClick={() => setSearchTerm("")} />
                         </div>
                     )}
 
@@ -123,7 +123,7 @@ const FilterGroup = memo(({
                                 />
                             ))
                         ) : (
-                            <div className="text-[11px] text-gray-400 italic py-2 text-center">No matches found</div>
+                            <div className="text-[11px] text-gray-400 italic py-2 text-center">{t("m.no-matches")}</div>
                         )}
                     </div>
                 </div>
@@ -293,7 +293,8 @@ function SidebarFilter({
 
     return (
         <aside
-            className={`flex-shrink-0 flex flex-col sticky top-[108px] h-fit z-30 transition-all duration-300 ease-in-out bg-white overflow-hidden ${isCollapsed ? 'w-[50px]' : 'w-[300px] border-r border-gray-200'}`}
+            dir={isRtl ? "rtl" : "ltr"}
+            className={`flex-shrink-0 flex flex-col sticky top-[108px] h-fit z-30 transition-all duration-300 ease-in-out bg-white overflow-hidden ${isCollapsed ? 'w-[50px]' : `w-[300px] ${isRtl ? 'border-l' : 'border-r'} border-gray-200`}`}
         >
             {/* Header — title + arrow inline */}
             <div className="flex items-center w-full h-[60px] border-b border-gray-200 bg-white shadow-sm flex-shrink-0">
@@ -307,8 +308,8 @@ function SidebarFilter({
                     className="w-[50px] min-w-[50px] h-full flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-all duration-300"
                 >
                     {isCollapsed
-                        ? <ChevronRight className="w-[18px] h-[18px]" />
-                        : <ChevronLeft className="w-[18px] h-[18px]" />
+                        ? (isRtl ? <ChevronLeft className="w-[18px] h-[18px]" /> : <ChevronRight className="w-[18px] h-[18px]" />)
+                        : (isRtl ? <ChevronRight className="w-[18px] h-[18px]" /> : <ChevronLeft className="w-[18px] h-[18px]" />)
                     }
                 </div>
             </div>

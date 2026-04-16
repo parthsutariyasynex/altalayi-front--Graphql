@@ -28,7 +28,7 @@ export default function Drawer({ isOpen, onClose, children, title, scrollable = 
             {/* Close Button Overlay */}
             <button
                 onClick={onClose}
-                className="absolute right-4 top-4 z-[110] p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-gray-100 transition-colors text-gray-500 hover:text-black"
+                className="absolute ltr:right-4 rtl:left-4 top-4 z-[110] p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-gray-100 transition-colors text-gray-500 hover:text-black"
                 aria-label="Close drawer"
             >
                 <X size={22} strokeWidth={2.5} />

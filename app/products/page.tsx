@@ -469,7 +469,7 @@ export default function ProductsPage() {
 
         {/* Mobile Filter Drawer */}
         <Drawer isOpen={isMobileFilterOpen} onClose={() => setIsMobileFilterOpen(false)}>
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full" dir={isRtl ? "rtl" : "ltr"}>
             <div className="bg-[#f5b21a] px-5 py-4 flex items-center justify-between flex-shrink-0">
               <h2 className="text-[14px] font-black text-black uppercase tracking-tight">{t("m.filter-options")}</h2>
               {Object.keys(selectedFilters).length > 0 && (
@@ -492,7 +492,7 @@ export default function ProductsPage() {
 
         {/* Mobile Search Drawer */}
         <Drawer isOpen={isMobileSearchOpen} onClose={() => setIsMobileSearchOpen(false)}>
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full" dir={isRtl ? "rtl" : "ltr"}>
             <div className="bg-[#f5b21a] px-5 py-4 flex-shrink-0">
               <h2 className="text-[14px] font-black text-black uppercase tracking-tight">{t("m.search-by-size")}</h2>
             </div>
@@ -519,7 +519,7 @@ export default function ProductsPage() {
                 {sortBy === "none" ? t("products.sortByDefault") : sortBy === "price-asc" ? t("products.sortByLowToHigh") : t("products.sortByHighToLow")}
               </button>
               <button onClick={() => setIsMobileFilterOpen(true)} className="h-[44px] bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider shadow-sm active:scale-95 cursor-pointer">
-                <Filter className="w-4 h-4" /> Filter
+                <Filter className="w-4 h-4" /> {t("m.filter-options")}
                 {Object.keys(selectedFilters).length > 0 && <span className="w-5 h-5 bg-[#f5b21a] rounded-full text-[10px] font-black flex items-center justify-center">{Object.keys(selectedFilters).length}</span>}
               </button>
             </div>
@@ -538,11 +538,11 @@ export default function ProductsPage() {
 
           {/* Mobile Sort Bottom Sheet */}
           {isMobileSortOpen && (
-            <div className="xl:hidden fixed inset-0 z-[100]">
+            <div className="xl:hidden fixed inset-0 z-[100]" dir={isRtl ? "rtl" : "ltr"}>
               <div className="absolute inset-0 bg-black/40" onClick={() => setIsMobileSortOpen(false)} />
               <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom duration-300">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                  <h3 className="text-[14px] font-black uppercase tracking-tight">Sort By</h3>
+                  <h3 className="text-[14px] font-black uppercase tracking-tight">{t("products.sortBy")}</h3>
                   <button onClick={() => setIsMobileSortOpen(false)} className="p-1 text-gray-400 hover:text-black"><X size={20} /></button>
                 </div>
                 <div className="flex flex-col py-2">
@@ -554,7 +554,7 @@ export default function ProductsPage() {
                     <button
                       key={opt.value}
                       onClick={() => { setSortBy(opt.value); setIsMobileSortOpen(false); }}
-                      className={`px-5 py-3.5 text-[13px] font-bold text-left flex items-center justify-between transition-colors ${sortBy === opt.value ? "bg-[#f5b21a]/10 text-black" : "text-gray-700 hover:bg-gray-50"}`}
+                      className={`px-5 py-3.5 text-[13px] font-bold ltr:text-left rtl:text-right flex items-center justify-between transition-colors ${sortBy === opt.value ? "bg-[#f5b21a]/10 text-black" : "text-gray-700 hover:bg-gray-50"}`}
                     >
                       {opt.label}
                       {sortBy === opt.value && <Check size={18} className="text-[#f5b21a]" strokeWidth={3} />}
