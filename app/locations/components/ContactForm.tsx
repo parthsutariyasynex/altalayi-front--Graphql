@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { Send, User, Phone, Mail, MessageSquare, Loader2, CheckCircle2 } from "lucide-react";
-import styles from "../locations.module.css";
 import { useTranslation } from "@/hooks/useTranslation";
 
 const ContactForm: React.FC = () => {
@@ -53,7 +52,7 @@ const ContactForm: React.FC = () => {
 
     if (isSubmitted) {
         return (
-            <div className={`w-full max-w-[1100px] mx-auto bg-green-50 border border-green-200 p-8 sm:p-12 md:p-16 text-center rounded-sm ${styles.fadeIn} shadow-inner`}>
+            <div className="w-full max-w-[1100px] mx-auto bg-green-50 border border-green-200 p-8 sm:p-12 md:p-16 text-center rounded-xl shadow-inner">
                 <div className="flex justify-center mb-6">
                     <CheckCircle2 className="w-20 h-20 text-green-500 animate-bounce" />
                 </div>
@@ -70,11 +69,11 @@ const ContactForm: React.FC = () => {
     }
 
     return (
-        <section className={`w-full max-w-[1100px] mx-auto ${styles.fadeIn} pb-20`}>
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2">
+        <section className="w-full max-w-[1100px] mx-auto pb-16">
+            <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="relative group">
-                        <div className="absolute left-4 top-[18px] text-gray-400 group-hover:text-[#f5a623] transition-colors pointer-events-none">
+                        <div className="absolute left-4 top-[16px] text-gray-400 group-hover:text-[#f5a623] transition-colors pointer-events-none">
                             <User className="w-5 h-5" />
                         </div>
                         <input
@@ -83,12 +82,12 @@ const ContactForm: React.FC = () => {
                             placeholder={t("contact.namePlaceholder")}
                             value={formData.name}
                             onChange={handleChange}
-                            className={`w-full pl-10 sm:pl-12 pr-5 py-4.5 border-2 ${errors.name ? 'border-red-400 focus:border-red-500' : 'border-gray-100 focus:border-[#f5a623]'} focus:outline-none transition-all bg-white text-black text-[15px] shadow-sm rounded-sm`}
+                            className={`w-full pl-11 pr-4 py-4 border ${errors.name ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#f5a623]'} focus:outline-none transition-all bg-white text-black text-[15px]`}
                         />
-                        {errors.name && <span className="text-red-500 text-[11px] font-black mt-1.5 block uppercase tracking-wider pl-1">{errors.name}</span>}
+                        {errors.name && <span className="text-red-500 text-xs font-semibold mt-1 block pl-1">{errors.name}</span>}
                     </div>
                     <div className="relative group">
-                        <div className="absolute left-4 top-[18px] text-gray-400 group-hover:text-[#f5a623] transition-colors pointer-events-none">
+                        <div className="absolute left-4 top-[16px] text-gray-400 group-hover:text-[#f5a623] transition-colors pointer-events-none">
                             <Phone className="w-5 h-5" />
                         </div>
                         <input
@@ -97,14 +96,14 @@ const ContactForm: React.FC = () => {
                             placeholder={t("contact.phonePlaceholder")}
                             value={formData.phone}
                             onChange={handleChange}
-                            className={`w-full pl-10 sm:pl-12 pr-5 py-4.5 border-2 ${errors.phone ? 'border-red-400 focus:border-red-500' : 'border-gray-100 focus:border-[#f5a623]'} focus:outline-none transition-all bg-white text-black text-[15px] shadow-sm rounded-sm`}
+                            className={`w-full pl-11 pr-4 py-4 border ${errors.phone ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#f5a623]'} focus:outline-none transition-all bg-white text-black text-[15px]`}
                         />
-                        {errors.phone && <span className="text-red-500 text-[11px] font-black mt-1.5 block uppercase tracking-wider pl-1">{errors.phone}</span>}
+                        {errors.phone && <span className="text-red-500 text-xs font-semibold mt-1 block pl-1">{errors.phone}</span>}
                     </div>
                 </div>
 
                 <div className="relative group">
-                    <div className="absolute left-4 top-[18px] text-gray-400 group-hover:text-[#f5a623] transition-colors pointer-events-none">
+                    <div className="absolute left-4 top-[16px] text-gray-400 group-hover:text-[#f5a623] transition-colors pointer-events-none">
                         <Mail className="w-5 h-5" />
                     </div>
                     <input
@@ -113,35 +112,35 @@ const ContactForm: React.FC = () => {
                         placeholder={t("contact.emailPlaceholder")}
                         value={formData.email}
                         onChange={handleChange}
-                        className={`w-full pl-10 sm:pl-12 pr-5 py-4.5 border-2 ${errors.email ? 'border-red-400 focus:border-red-500' : 'border-gray-100 focus:border-[#f5a623]'} focus:outline-none transition-all bg-white text-black text-[15px] shadow-sm rounded-sm`}
+                        className={`w-full pl-11 pr-4 py-4 border ${errors.email ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#f5a623]'} focus:outline-none transition-all bg-white text-black text-[15px]`}
                     />
-                    {errors.email && <span className="text-red-500 text-[11px] font-black mt-1.5 block uppercase tracking-wider pl-1">{errors.email}</span>}
+                    {errors.email && <span className="text-red-500 text-xs font-semibold mt-1 block pl-1">{errors.email}</span>}
                 </div>
 
                 <div className="relative group">
-                    <div className="absolute left-4 top-5 text-gray-400 group-hover:text-[#f5a623] transition-colors pointer-events-none">
+                    <div className="absolute left-4 top-[16px] text-gray-400 group-hover:text-[#f5a623] transition-colors pointer-events-none">
                         <MessageSquare className="w-5 h-5" />
                     </div>
                     <textarea
                         name="comment"
                         placeholder={t("contact.messagePlaceholder")}
-                        rows={7}
+                        rows={6}
                         value={formData.comment}
                         onChange={handleChange}
-                        className={`w-full pl-10 sm:pl-12 pr-5 py-4.5 border-2 ${errors.comment ? 'border-red-400 focus:border-red-500' : 'border-gray-100 focus:border-[#f5a623]'} focus:outline-none transition-all bg-white text-black text-[15px] resize-none shadow-sm rounded-sm`}
+                        className={`w-full pl-11 pr-4 py-4 border ${errors.comment ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#f5a623]'} focus:outline-none transition-all bg-white text-black text-[15px] resize-none`}
                     ></textarea>
-                    {errors.comment && <span className="text-red-500 text-[11px] font-black mt-1.5 block uppercase tracking-wider pl-1">{errors.comment}</span>}
+                    {errors.comment && <span className="text-red-500 text-xs font-semibold mt-1 block pl-1">{errors.comment}</span>}
                 </div>
 
-                <div className="pt-4 flex flex-col items-center sm:items-start">
+                <div className="pt-2 flex flex-col items-center sm:items-start">
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className={`bg-[#f5a623] text-black font-black px-8 sm:px-10 md:px-12 py-4.5 uppercase tracking-widest hover:bg-black hover:text-white transition-all duration-500 text-[15px] shadow-xl hover:shadow-2xl flex items-center justify-center gap-4 min-w-[240px] border-b-4 border-black/10 hover:border-black/0 active:translate-y-1 mb-2`}
+                        className={`bg-[#f5a623] text-black font-bold px-10 py-4 uppercase tracking-widest hover:bg-black hover:text-white transition-all duration-300 text-[15px] flex items-center justify-center gap-3 min-w-[240px]`}
                     >
                         {isLoading ? (
                             <>
-                                <Loader2 className="w-6 h-6 animate-spin" />
+                                <Loader2 className="w-5 h-5 animate-spin" />
                                 {t("contact.processing")}
                             </>
                         ) : (
@@ -151,7 +150,7 @@ const ContactForm: React.FC = () => {
                             </>
                         )}
                     </button>
-                    <p className="text-[11px] text-gray-500 mt-2 font-medium italic">{t("contact.privacyNote")}</p>
+                    <p className="text-xs text-gray-400 mt-2 font-medium italic">{t("contact.privacyNote")}</p>
                 </div>
             </form>
         </section>
