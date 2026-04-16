@@ -28,7 +28,12 @@ export function PageSizeSelect({ value, onChange }: { value: number; onChange: (
     const updatePos = useCallback(() => {
         if (triggerRef.current) {
             const rect = triggerRef.current.getBoundingClientRect();
-            setPos({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+            setPos({
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height
+            });
         }
     }, []);
 
@@ -59,30 +64,37 @@ export function PageSizeSelect({ value, onChange }: { value: number; onChange: (
 
     return (
         <div className="flex items-center gap-2 md:gap-3">
-            <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-wider">{t("favorites.show")}</span>
+            <span className="text-[10px] md:text-[11px] text-gray-500 font-bold uppercase tracking-wider">{t("favorites.show")}</span>
             <button
                 ref={triggerRef}
                 type="button"
                 onClick={handleToggle}
-                className={`h-8 md:h-9 px-3 bg-white border rounded text-[12px] md:text-[13px] font-black text-black flex items-center gap-2 min-w-[60px] justify-between cursor-pointer transition-all shadow-sm ${isOpen ? "border-[#f5a623] ring-1 ring-[#f5a623]/20" : "border-gray-200 hover:border-[#f5a623] hover:shadow-md"}`}
+                className={`h-8 md:h-9 px-3 bg-white border rounded text-[12px] md:text-[13px] font-black text-black flex items-center gap-2 min-w-[70px] justify-between cursor-pointer transition-all shadow-sm active:scale-95 ${isOpen ? "border-[#f5a623] ring-2 ring-[#f5a623]/10" : "border-gray-200 hover:border-[#f5a623] hover:shadow-md"}`}
             >
-                {value}
-                <ChevronDown size={12} className={`text-[#f5a624] transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+                <span className="flex-1 text-center font-bold">{value}</span>
+                <ChevronDown size={14} className={`text-[#f5a623] transition-transform duration-300 flex-shrink-0 ${isOpen ? "rotate-180" : ""}`} />
             </button>
             {isOpen && mounted && createPortal(
                 <>
                     <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setIsOpen(false)} />
                     <div
                         ref={dropdownRef}
-                        style={{ position: "fixed", top: pos.top + pos.height + 4, left: pos.left, width: Math.max(pos.width, 65), zIndex: 9999 }}
-                        className="bg-white border border-gray-200 rounded-md shadow-xl overflow-hidden"
+                        style={{
+                            position: "fixed",
+                            top: pos.top + pos.height + 6,
+                            left: pos.left + (pos.width / 2),
+                            transform: "translateX(-50%)",
+                            width: Math.max(pos.width + 10, 80),
+                            zIndex: 9999
+                        }}
+                        className="bg-white border-2 border-[#f5a623] rounded-lg shadow-[0_15px_50px_-15px_rgba(0,0,0,0.3)] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
                     >
                         {sizes.map((s) => (
                             <button
                                 key={s}
                                 type="button"
                                 onClick={() => { onChange(s); setIsOpen(false); }}
-                                className={`w-full text-center px-3 py-2.5 text-[13px] font-bold cursor-pointer transition-colors border-b last:border-0 border-gray-50 ${s === value ? "bg-[#f5a623] text-black" : "text-gray-700 hover:bg-gray-50 hover:text-[#f5a623]"}`}
+                                className={`w-full text-center px-3 py-3 text-[13px] font-black cursor-pointer transition-all border-b last:border-0 border-gray-50 ${s === value ? "bg-[#f5a623] text-black" : "text-gray-900 hover:bg-gray-50 hover:text-[#f5a623]"}`}
                             >
                                 {s}
                             </button>
@@ -91,7 +103,7 @@ export function PageSizeSelect({ value, onChange }: { value: number; onChange: (
                 </>,
                 document.body
             )}
-            <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-wider whitespace-nowrap">{t("common.perPage")}</span>
+            <span className="text-[10px] md:text-[11px] text-gray-500 font-bold uppercase tracking-wider whitespace-nowrap">{t("common.perPage")}</span>
         </div>
     );
 }
@@ -138,14 +150,18 @@ const Pagination: React.FC<PaginationProps> = ({
     const visiblePages = getVisiblePages();
 
     return (
-        <div className="flex flex-col md:flex-row items-center justify-between py-3 md:py-4 px-1 gap-4 mt-4 border-t border-gray-100">
-            {/* Item count */}
-            <div className="text-[13px] md:text-[14px] text-gray-500 font-medium order-2 md:order-1">
-                {t("favorites.show")} <span className="text-black font-extrabold">{t("favorites.items")} {startItem} - {endItem}</span> {t("favorites.of")} <span className="text-black font-extrabold">{totalItems}</span> {t("favorites.total")}
-            </div>
+        <div className="flex flex-col md:flex-row items-center justify-between py-3 md:py-4 px-1 gap-6 mt-4 border-t border-gray-100">
+            {/* 1. Page Size Selector (Left on desktop, Top on mobile) */}
+            {onPageSizeChange ? (
+                <div className="order-1 md:w-[180px] flex md:justify-start">
+                    <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+                </div>
+            ) : (
+                <div className="order-1 md:w-[180px]" />
+            )}
 
-            {/* Pagination Controls */}
-            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap justify-center order-1 md:order-2">
+            {/* 2. Pagination Controls (Center) */}
+            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap justify-center order-2">
                 {currentPage > 1 && (
                     <button
                         onClick={() => onPageChange(currentPage - 1)}
@@ -181,13 +197,10 @@ const Pagination: React.FC<PaginationProps> = ({
                     </button>
                 )}
             </div>
-
-            {/* Page Size Selector */}
-            {onPageSizeChange && (
-                <div className="order-3">
-                    <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
-                </div>
-            )}
+            {/* 3. Item count (Right on desktop, Bottom on mobile) */}
+            <div className="text-[11px] md:text-[13px] text-gray-500 font-medium order-3 md:w-[220px] text-center md:text-right">
+                {t("favorites.show")} <span className="text-black font-bold">{t("favorites.items")} {startItem} - {endItem}</span> {t("favorites.of")} <span className="text-black font-bold">{totalItems}</span> {t("favorites.total")}
+            </div>
         </div>
     );
 };

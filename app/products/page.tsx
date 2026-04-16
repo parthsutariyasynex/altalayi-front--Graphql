@@ -291,7 +291,7 @@ export default function ProductsPage() {
     return (
       <div className="flex flex-col items-center justify-center text-center gap-1">
         <span className={`w-4 h-4 rounded-full border border-gray-100 shadow-sm ${colorClass}`}></span>
-        <span className="text-[10px] font-black text-gray-700 uppercase leading-none">{label}</span>
+        <span className="text-[10px] font-bold text-gray-700 uppercase leading-none">{label}</span>
       </div>
     );
   };

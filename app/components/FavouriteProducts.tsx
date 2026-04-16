@@ -250,12 +250,6 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                     )}
                 </div>
                 <div className="h-[2px] flex-1 bg-gradient-to-r from-yellow-400 to-transparent"></div>
-                <div className="flex-shrink-0">
-                    <PageSizeSelect
-                        value={pageSize}
-                        onChange={(val: number) => { setPageSize(val); setCurrentPage(1); }}
-                    />
-                </div>
             </div>
 
             {/* Mobile/Tablet Card List */}
@@ -509,6 +503,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                             totalItems={totalCount}
                             pageSize={pageSize}
                             onPageChange={setCurrentPage}
+                            onPageSizeChange={(val: number) => { setPageSize(val); setCurrentPage(1); }}
                         />
                     </div>
                 )
