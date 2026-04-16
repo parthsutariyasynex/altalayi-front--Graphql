@@ -274,7 +274,7 @@ function LoginPageContent() {
                     <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest">
                       {t("login.mobileNumberLabel")} <span className="text-red-600 font-bold">*</span>
                     </label>
-                    <div className={`flex h-[48px] bg-white border transition-all ${errors.mobile ? 'border-red-500' : 'border-gray-300 focus-within:border-gray-600'}`}>
+                    <div dir="ltr" className={`flex h-[48px] bg-white border transition-all ${errors.mobile ? 'border-red-500' : 'border-gray-300 focus-within:border-gray-600'}`}>
                       <div
                         className="px-4 flex items-center gap-2 border-r border-gray-100 cursor-pointer min-w-[110px] sm:min-w-[120px] hover:bg-gray-50 transition-colors"
                         onClick={() => setShowDropdown(!showDropdown)}
@@ -293,7 +293,7 @@ function LoginPageContent() {
                       />
 
                       {showDropdown && (
-                        <div className="absolute top-full left-0 w-full min-w-max bg-white border border-gray-100 shadow-[0_15px_60px_-15px_rgba(0,0,0,0.15)] z-[100] rounded-sm mt-1 max-h-60 overflow-y-auto">
+                        <div className="absolute top-full ltr:left-0 rtl:right-0 w-full min-w-max bg-white border border-gray-100 shadow-[0_15px_60px_-15px_rgba(0,0,0,0.15)] z-[100] rounded-sm mt-1 max-h-60 overflow-y-auto">
                           {COUNTRY_CODES.map((item) => (
                             <div
                               key={item.code}
