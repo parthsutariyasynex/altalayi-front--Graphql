@@ -97,7 +97,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     const renderDropdownList = () => (
         <>
             <div className="px-3 sm:px-4 py-2 bg-[#f5a623] border-b border-yellow-600/20">
-                <span className="text-[12px] sm:text-[14px] font-[900] text-black uppercase tracking-tight">
+                <span className="text-[12px] sm:text-[14px] font-semibold text-black uppercase tracking-tight">
                     {label.replace(" Options", "")}
                 </span>
             </div>
@@ -134,7 +134,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                                 setIsOpen(false);
                                 setSearchTerm("");
                             }}
-                            className={`px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-bold cursor-pointer transition-colors ${value === opt.value
+                            className={`px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-semibold cursor-pointer transition-colors ${value === opt.value
                                 ? "bg-yellow-50 text-black border-l-4 border-[#f5a623]"
                                 : "text-gray-700 hover:bg-gray-50 hover:text-black"
                                 }`}
@@ -161,7 +161,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                         "border-gray-300 hover:border-[#f5a623] text-gray-800"
                     } ${isOpen ? "ring-2 ring-[#f5a623]/20 border-[#f5a623]" : ""}`}
             >
-                <span className="text-[12px] sm:text-[14px] font-bold truncate">
+                <span className="text-[12px] sm:text-[14px] font-semibold truncate">
                     {loading ? "Loading..." : displayLabel}
                 </span>
                 <ChevronDown className={`w-4 h-4 flex-shrink-0 ml-1 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
@@ -372,7 +372,7 @@ const HorizontalFilter: React.FC<HorizontalFilterProps> = ({ onSearch, initialVa
                 <div className="flex gap-3 mt-2">
                     <button
                         onClick={handleSearchClick}
-                        className="flex-1 h-[48px] bg-[#f5a623] hover:bg-black hover:text-white rounded-lg text-black font-[900] italic uppercase text-[13px] tracking-tight active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-sm transition-all"
+                        className="flex-1 h-[48px] bg-[#f5a623] hover:bg-black hover:text-white rounded-lg text-black font-semibold italic uppercase text-[13px] tracking-tight active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-sm transition-all"
                     >
                         <Search className="w-4 h-4" /> {t("m.search")}
                     </button>
@@ -393,7 +393,7 @@ const HorizontalFilter: React.FC<HorizontalFilterProps> = ({ onSearch, initialVa
         <div className="w-full bg-white h-full px-2 sm:px-4 md:px-6 flex items-center justify-center gap-2 sm:gap-4 flex-nowrap overflow-visible relative">
             {/* Label */}
             <div className="bg-[#f5a623] px-4 md:px-6 py-2 md:py-2.5 rounded shadow-sm flex-shrink-0">
-                <span className="text-black font-[900] italic uppercase text-[12px] md:text-[15px] tracking-tight whitespace-nowrap">
+                <span className="text-black font-semibold italic uppercase text-[12px] md:text-[15px] tracking-tight whitespace-nowrap">
                     {t("m.search-by-size")}
                 </span>
             </div>
@@ -418,7 +418,7 @@ const HorizontalFilter: React.FC<HorizontalFilterProps> = ({ onSearch, initialVa
 
             <button
                 onClick={handleSearchClick}
-                className="bg-[#f5a623] hover:bg-black hover:text-white px-4 sm:px-6 md:px-10 py-2 md:py-2.5 h-[40px] md:h-[45px] rounded border-none shadow-sm transition-all text-black font-[900] italic uppercase text-[12px] md:text-[15px] tracking-tight active:scale-95 cursor-pointer flex-shrink-0 flex items-center justify-center"
+                className="bg-[#f5a623] hover:bg-black hover:text-white px-4 sm:px-6 md:px-10 py-2 md:py-2.5 h-[40px] md:h-[45px] rounded border-none shadow-sm transition-all text-black font-semibold italic uppercase text-[12px] md:text-[15px] tracking-tight active:scale-95 cursor-pointer flex-shrink-0 flex items-center justify-center"
             >
                 {t("m.search")}
             </button>
