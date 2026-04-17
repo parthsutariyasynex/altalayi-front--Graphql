@@ -101,14 +101,19 @@ const FilterGroup = memo(({
                 <div className="px-6 pb-5 flex flex-col gap-3">
                     {group.options.length > 5 && (
                         <div className="relative mb-1">
-                            <input
-                                type="text"
-                                placeholder={`${t("m.search")} ${group.label}...`}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full ltr:pl-8 ltr:pr-3 rtl:pr-8 rtl:pl-3 py-1.5 text-xs border border-gray-200 rounded-md outline-none"
-                            />
-                            <X className="absolute ltr:right-2 rtl:left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 cursor-pointer" onClick={() => setSearchTerm("")} />
+                            {(() => {
+                                const translatedGroupLabel = t(`filter.${group.code}`) !== `filter.${group.code}` ? t(`filter.${group.code}`) : group.label;
+                                return (
+                                    <input
+                                        type="text"
+                                        placeholder={`${t("m.search")} ${translatedGroupLabel}...`}
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full ltr:pl-8 ltr:pr-3 rtl:pr-8 rtl:pl-3 py-1.5 text-xs border border-gray-200 rounded-md outline-none focus:border-yellow-400 transition-colors"
+                                    />
+                                );
+                            })()}
+                            <X className="absolute ltr:right-2 rtl:left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 hover:text-red-500 transition-colors cursor-pointer" onClick={() => setSearchTerm("")} />
                         </div>
                     )}
 

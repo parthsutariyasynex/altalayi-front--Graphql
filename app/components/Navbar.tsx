@@ -98,6 +98,14 @@ export default function Navbar() {
     }
   }, [isAuthenticated, pullNotifications, customerData, dispatch]);
 
+  // Refetch customer info when locale changes so name matches the language
+  useEffect(() => {
+    if (isAuthenticated && customerData) {
+      dispatch(fetchCustomerInfo() as any);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
+
   useEffect(() => {
     const fn = () => pullNotifications();
     window.addEventListener("notifications-updated", fn);
@@ -222,7 +230,7 @@ export default function Navbar() {
                   </div>
                   <div className="flex flex-col min-w-0 pr-1 rtl:pr-0 rtl:pl-1">
                     <span className="hidden lg:block text-[8px] text-gray-400 font-bold uppercase tracking-widest leading-none">{t("nav.welcomeBack")}</span>
-                    <span className="text-[11px] lg:text-[12px] text-black font-black tracking-tighter leading-snug mt-0.5 truncate max-w-[80px] lg:max-w-[140px] font-bold">
+                    <span className="text-[11px] lg:text-[12px] text-black font-black tracking-tighter leading-snug mt-0.5 truncate max-w-[80px] lg:max-w-[140px] font-bold" dir="auto">
                       {isSubAccount && subAccountName ? subAccountName : displayUser}
                     </span>
                   </div>
@@ -367,7 +375,7 @@ export default function Navbar() {
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col overflow-hidden">
                     <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none">{t("nav.loggedInAs")}</span>
-                    <span className="text-[12px] text-black font-black uppercase truncate tracking-tight">
+                    <span className="text-[12px] text-black font-black uppercase truncate tracking-tight" dir="auto">
                       {isSubAccount && subAccountName ? subAccountName : displayUser}
                     </span>
                   </div>
