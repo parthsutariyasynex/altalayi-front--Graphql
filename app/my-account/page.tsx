@@ -309,12 +309,12 @@ export default function MyAccountPage() {
                                         <div className="p-3 md:p-5 flex flex-col flex-1">
                                             {defaultBilling ? (
                                                 <div className="text-[13px] text-gray-800 leading-relaxed space-y-1 font-normal flex-1">
-                                                    <p>{defaultBilling.firstname} {defaultBilling.lastname}</p>
-                                                    <p>{defaultBilling.company}</p>
-                                                    {defaultBilling.street?.map((s: string, i: number) => <p key={i}>{s}</p>)}
-                                                    <p>{defaultBilling.city}, {defaultBilling.postcode}</p>
+                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultBilling.firstname} {defaultBilling.lastname}</p>
+                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultBilling.company}</p>
+                                                    {defaultBilling.street?.map((s: string, i: number) => <p key={i} dir="ltr" style={{ unicodeBidi: "isolate" }}>{s}</p>)}
+                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultBilling.city}, {defaultBilling.postcode}</p>
                                                     <p>{defaultBilling.country_id === 'SA' ? t("data.Saudi Arabia") : defaultBilling.country_id}</p>
-                                                    <p>T: {defaultBilling.telephone}</p>
+                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {defaultBilling.telephone}</p>
                                                 </div>
                                             ) : (
                                                 <p className="text-[13px] text-gray-500 italic flex-1">{t("addressBook.noBillingAddress")}</p>
@@ -330,12 +330,12 @@ export default function MyAccountPage() {
                                         <div className="p-3 md:p-5 flex flex-col flex-1">
                                             {defaultShipping ? (
                                                 <div className="text-[13px] text-gray-800 leading-relaxed space-y-1 font-normal flex-1">
-                                                    <p>{defaultShipping.firstname} {defaultShipping.lastname}</p>
-                                                    <p>{defaultShipping.company}</p>
-                                                    {defaultShipping.street?.map((s: string, i: number) => <p key={i}>{s}</p>)}
-                                                    <p>{defaultShipping.city}, {defaultShipping.postcode}</p>
+                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultShipping.firstname} {defaultShipping.lastname}</p>
+                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultShipping.company}</p>
+                                                    {defaultShipping.street?.map((s: string, i: number) => <p key={i} dir="ltr" style={{ unicodeBidi: "isolate" }}>{s}</p>)}
+                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultShipping.city}, {defaultShipping.postcode}</p>
                                                     <p>{defaultShipping.country_id === 'SA' ? t("data.Saudi Arabia") : defaultShipping.country_id}</p>
-                                                    <p>T: {defaultShipping.telephone}</p>
+                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {defaultShipping.telephone}</p>
                                                 </div>
                                             ) : (
                                                 <p className="text-[13px] text-gray-500 italic flex-1">{t("addressBook.noShippingAddress")}</p>

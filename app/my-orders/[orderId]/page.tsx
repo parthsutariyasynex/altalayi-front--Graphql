@@ -537,13 +537,13 @@ export default function OrderDetailsPage() {
                                 <div className="p-4 md:p-6 text-xs text-gray-600 leading-relaxed min-h-[140px]">
                                     {shippingAddress ? (
                                         <div className="space-y-1">
-                                            <p className="font-black text-black uppercase mb-2">{shippingAddress.firstname} {shippingAddress.lastname}</p>
-                                            {shippingAddress.company && <p className="font-medium">{shippingAddress.company}</p>}
-                                            <p className="font-medium">{shippingAddress.street?.join(", ")}</p>
-                                            <p className="font-medium">{shippingAddress.city}, {shippingAddress.postcode}</p>
+                                            <p className="font-black text-black uppercase mb-2" dir="ltr" style={{ unicodeBidi: "isolate" }}>{shippingAddress.firstname} {shippingAddress.lastname}</p>
+                                            {shippingAddress.company && <p className="font-medium" dir="ltr" style={{ unicodeBidi: "isolate" }}>{shippingAddress.company}</p>}
+                                            <p className="font-medium" dir="ltr" style={{ unicodeBidi: "isolate" }}>{shippingAddress.street?.join(", ")}</p>
+                                            <p className="font-medium" dir="ltr" style={{ unicodeBidi: "isolate" }}>{shippingAddress.city}, {shippingAddress.postcode}</p>
                                             <p className="font-medium">{shippingAddress.country_id === "SA" ? t("data.Saudi Arabia") : shippingAddress.country_id}</p>
 
-                                            <p className="pt-2 text-black font-black">T: <span className="text-gray-600 font-medium">{shippingAddress.telephone}</span></p>
+                                            <p className="pt-2 text-black font-black" dir="ltr" style={{ unicodeBidi: "isolate" }}>T: <span className="text-gray-600 font-medium">{shippingAddress.telephone}</span></p>
                                         </div>
                                     ) : (
                                         <p className="text-gray-400 italic">{t("orderDetails.noShippingAddress")}</p>
@@ -578,13 +578,13 @@ export default function OrderDetailsPage() {
                                 <div className="p-4 md:p-6 text-xs text-gray-600 leading-relaxed min-h-[140px]">
                                     {billingAddress ? (
                                         <div className="space-y-1">
-                                            <p className="font-black text-black uppercase mb-2">{billingAddress.firstname} {billingAddress.lastname}</p>
-                                            {billingAddress.company && <p className="font-medium">{billingAddress.company}</p>}
-                                            <p className="font-medium">{billingAddress.street?.join(", ")}</p>
-                                            <p className="font-medium">{billingAddress.city}, {billingAddress.postcode}</p>
+                                            <p className="font-black text-black uppercase mb-2" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress.firstname} {billingAddress.lastname}</p>
+                                            {billingAddress.company && <p className="font-medium" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress.company}</p>}
+                                            <p className="font-medium" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress.street?.join(", ")}</p>
+                                            <p className="font-medium" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress.city}, {billingAddress.postcode}</p>
                                             <p className="font-medium">{billingAddress.country_id === "SA" ? t("data.Saudi Arabia") : billingAddress.country_id}</p>
 
-                                            <p className="pt-2 text-black font-black">T: <span className="text-gray-600 font-medium">{billingAddress.telephone}</span></p>
+                                            <p className="pt-2 text-black font-black" dir="ltr" style={{ unicodeBidi: "isolate" }}>T: <span className="text-gray-600 font-medium">{billingAddress.telephone}</span></p>
                                         </div>
                                     ) : (
                                         <p className="text-gray-400 italic">{t("orderDetails.noBillingAddress")}</p>
@@ -749,22 +749,22 @@ export default function OrderDetailsPage() {
                     <div className="address-content-row">
                         <div className={`content-cell ${locale === 'ar' ? 'border-l' : 'border-r'} border-black text-start`}>
 
-                            <p className="font-bold">{billingAddress?.firstname} {billingAddress?.lastname}</p>
-                            <p>{billingAddress?.company || "-"}</p>
-                            <p>{billingAddress?.street?.join(", ")}</p>
-                            <p>{billingAddress?.city}, {billingAddress?.postcode}</p>
+                            <p className="font-bold" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress?.firstname} {billingAddress?.lastname}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress?.company || "-"}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress?.street?.join(", ")}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress?.city}, {billingAddress?.postcode}</p>
                             <p>{billingAddress?.country_id === "SA" ? t("data.Saudi Arabia") : billingAddress?.country_id}</p>
-                            <p>{t("orderDetails.phone")}: {billingAddress?.telephone}</p>
-                            <p>Email: {order.customer_email || "-"}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{t("orderDetails.phone")}: {billingAddress?.telephone}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>Email: {order.customer_email || "-"}</p>
 
                         </div>
                         <div className="content-cell">
-                            <p className="font-bold">{shippingAddress?.firstname} {shippingAddress?.lastname}</p>
-                            <p>{shippingAddress?.company || "-"}</p>
-                            <p>{shippingAddress?.street?.join(", ")}</p>
-                            <p>{shippingAddress?.city}, {shippingAddress?.postcode}</p>
+                            <p className="font-bold" dir="ltr" style={{ unicodeBidi: "isolate" }}>{shippingAddress?.firstname} {shippingAddress?.lastname}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{shippingAddress?.company || "-"}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{shippingAddress?.street?.join(", ")}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{shippingAddress?.city}, {shippingAddress?.postcode}</p>
                             <p>{shippingAddress?.country_id === "SA" ? t("data.Saudi Arabia") : shippingAddress?.country_id}</p>
-                            <p>{t("orderDetails.phone")}: {shippingAddress?.telephone}</p>
+                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{t("orderDetails.phone")}: {shippingAddress?.telephone}</p>
 
                         </div>
                     </div>

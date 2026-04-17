@@ -742,7 +742,7 @@ const CheckoutPageUI: React.FC = () => {
                                                 {/* Details */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-[12px] text-gray-600 leading-relaxed mb-3">
-                                                        <p className="font-medium text-[12px] sm:text-[13px] text-black">
+                                                        <p className="font-medium text-[12px] sm:text-[13px] text-black" dir="ltr" style={{ unicodeBidi: "isolate" }}>
                                                             <span className="font-black">{addr.firstname} {addr.lastname}</span>{" "}
                                                             {addr.street} {addr.city}, {addr.postcode}{" "}
                                                             {addr.country_id === 'SA' ? t("data.Saudi Arabia") : addr.country_id} {addr.telephone}

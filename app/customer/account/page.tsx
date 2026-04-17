@@ -242,11 +242,11 @@ export default function MyAccountPage() {
                                                 </h4>
                                                 {defaultBilling ? (
                                                     <div className="text-[13px] text-gray-700 leading-relaxed font-medium space-y-1">
-                                                        <p className="font-black text-black text-sm mb-2">{(customer as any).firstname} {(customer as any).lastname}</p>
-                                                        {defaultBilling.street?.map((s: string, i: number) => <p key={i}>{s}</p>)}
-                                                        <p>{defaultBilling.city}, {defaultBilling.postcode}</p>
+                                                        <p className="font-black text-black text-sm mb-2" dir="ltr" style={{ unicodeBidi: "isolate" }}>{(customer as any).firstname} {(customer as any).lastname}</p>
+                                                        {defaultBilling.street?.map((s: string, i: number) => <p key={i} dir="ltr" style={{ unicodeBidi: "isolate" }}>{s}</p>)}
+                                                        <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultBilling.city}, {defaultBilling.postcode}</p>
                                                         <p className="uppercase text-[11px] text-gray-400">{defaultBilling.country_id}</p>
-                                                        <p className="pt-4 text-gray-500 font-mono text-xs">T: {defaultBilling.telephone}</p>
+                                                        <p className="pt-4 text-gray-500 font-mono text-xs" dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {defaultBilling.telephone}</p>
                                                     </div>
                                                 ) : (
                                                     <p className="text-[13px] text-gray-400 italic">No default billing address set.</p>
@@ -259,11 +259,11 @@ export default function MyAccountPage() {
                                                 </h4>
                                                 {defaultShipping ? (
                                                     <div className="text-[13px] text-gray-700 leading-relaxed font-medium space-y-1">
-                                                        <p className="font-black text-black text-sm mb-2">{(customer as any).firstname} {(customer as any).lastname}</p>
-                                                        {defaultShipping.street?.map((s: string, i: number) => <p key={i}>{s}</p>)}
-                                                        <p>{defaultShipping.city}, {defaultShipping.postcode}</p>
+                                                        <p className="font-black text-black text-sm mb-2" dir="ltr" style={{ unicodeBidi: "isolate" }}>{(customer as any).firstname} {(customer as any).lastname}</p>
+                                                        {defaultShipping.street?.map((s: string, i: number) => <p key={i} dir="ltr" style={{ unicodeBidi: "isolate" }}>{s}</p>)}
+                                                        <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultShipping.city}, {defaultShipping.postcode}</p>
                                                         <p className="uppercase text-[11px] text-gray-400">{defaultShipping.country_id}</p>
-                                                        <p className="pt-4 text-gray-500 font-mono text-xs">T: {defaultShipping.telephone}</p>
+                                                        <p className="pt-4 text-gray-500 font-mono text-xs" dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {defaultShipping.telephone}</p>
                                                     </div>
                                                 ) : (
                                                     <p className="text-[13px] text-gray-400 italic">No default shipping address set.</p>

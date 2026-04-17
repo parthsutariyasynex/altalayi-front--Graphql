@@ -263,12 +263,12 @@ const MultiShippingReviewPage: React.FC = () => {
                         <div className="p-5 md:p-8 text-[13px] md:text-[14px] text-black leading-[1.7]">
                             {billingAddress ? (
                                 <>
-                                    <p className="font-bold uppercase tracking-tight mb-0.5">{billingAddress.firstname} {billingAddress.lastname}</p>
-                                    <p className="mb-0.5">{billingAddress.company}</p>
-                                    <p className="mb-0.5">{billingAddress.street}</p>
-                                    <p className="mb-0.5">{billingAddress.city}, {billingAddress.postcode}</p>
+                                    <p className="font-bold uppercase tracking-tight mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress.firstname} {billingAddress.lastname}</p>
+                                    <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress.company}</p>
+                                    <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress.street}</p>
+                                    <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{billingAddress.city}, {billingAddress.postcode}</p>
                                     <p className="mb-0.5">{t("multi.saudiArabia")}</p>
-                                    <p className="mt-3">T: {billingAddress.telephone}</p>
+                                    <p className="mt-3" dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {billingAddress.telephone}</p>
                                 </>
                             ) : <p className="text-gray-400">{t("multi.loadingBilling")}</p>}
                         </div>
@@ -338,12 +338,12 @@ const MultiShippingReviewPage: React.FC = () => {
                                         <h2 className="text-[11px] font-[900] text-black uppercase tracking-widest">{t("multi.shippingTo")}</h2>
                                     </div>
                                     <div className="p-5 md:p-8 text-[13px] md:text-[14px] text-black leading-[1.7] flex-grow">
-                                        <p className="font-bold uppercase mb-0.5">{group.address.firstname} {group.address.lastname}</p>
-                                        <p className="mb-0.5">{group.address.company}</p>
-                                        <p className="mb-0.5">{group.address.street}</p>
-                                        <p className="mb-0.5">{group.address.city}, {group.address.postcode}</p>
+                                        <p className="font-bold uppercase mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{group.address.firstname} {group.address.lastname}</p>
+                                        <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{group.address.company}</p>
+                                        <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{group.address.street}</p>
+                                        <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{group.address.city}, {group.address.postcode}</p>
                                         <p className="mb-0.5">{t("multi.saudiArabia")}</p>
-                                        <p className="mt-3">T: {group.address.telephone}</p>
+                                        <p className="mt-3" dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {group.address.telephone}</p>
                                         {group.address.custom_attributes?.find(a => a.attribute_code === 'vat_number')?.value && (
                                             <p>VAT: {group.address.custom_attributes.find(a => a.attribute_code === 'vat_number')?.value}</p>
                                         )}

@@ -160,12 +160,12 @@ const MultiShippingBillingPage: React.FC = () => {
                         <div className="p-5 md:p-10 flex-grow min-h-[200px] md:min-h-[300px]">
                             {currentAddress ? (
                                 <div className="text-[13px] md:text-[14px] text-black leading-[1.8] font-medium">
-                                    <p className="font-black text-[14px] md:text-[15px] uppercase mb-1">{currentAddress.firstname} {currentAddress.lastname}</p>
-                                    <p>{currentAddress.company}</p>
-                                    <p>{currentAddress.street}</p>
-                                    <p>{currentAddress.city}, {currentAddress.postcode}</p>
+                                    <p className="font-black text-[14px] md:text-[15px] uppercase mb-1" dir="ltr" style={{ unicodeBidi: "isolate" }}>{currentAddress.firstname} {currentAddress.lastname}</p>
+                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{currentAddress.company}</p>
+                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{currentAddress.street}</p>
+                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{currentAddress.city}, {currentAddress.postcode}</p>
                                     <p>{t("multi.saudiArabia")}</p>
-                                    <p className="mt-4">T: {currentAddress.telephone}</p>
+                                    <p className="mt-4" dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {currentAddress.telephone}</p>
 
                                 </div>
                             ) : (

@@ -194,12 +194,12 @@ const MultiShippingShippingPage: React.FC = () => {
                                             </h2>
                                         </div>
                                         <div className="p-5 md:p-10 text-[13px] md:text-[14px] text-black leading-[1.6] flex-grow">
-                                            <p className="mb-0.5">{group.address.firstname} {group.address.lastname}</p>
+                                            <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{group.address.firstname} {group.address.lastname}</p>
                                             {/* <p className="mb-0.5">{group.address.company || "Company Name"}</p> */}
-                                            <p className="mb-0.5">{group.address.street}</p>
-                                            <p className="mb-0.5">{group.address.city}, {group.address.postcode}</p>
+                                            <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{group.address.street}</p>
+                                            <p className="mb-0.5" dir="ltr" style={{ unicodeBidi: "isolate" }}>{group.address.city}, {group.address.postcode}</p>
                                             <p className="mb-4">{t("multi.saudiArabia")}</p>
-                                            <p className="">T: {group.address.telephone}</p>
+                                            <p dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {group.address.telephone}</p>
                                         </div>
                                     </div>
 

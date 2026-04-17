@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface PaginationProps {
@@ -167,7 +167,7 @@ const Pagination: React.FC<PaginationProps> = ({
                         onClick={() => onPageChange(currentPage - 1)}
                         className="h-9 md:h-10 w-9 md:w-10 flex items-center justify-center bg-white border border-gray-200 text-black font-extrabold rounded-full hover:bg-gray-50 hover:border-[#f5a623] hover:text-[#f5a623] transition-all duration-200 cursor-pointer shadow-sm"
                     >
-                        {isRtl ? "›" : "‹"}
+                        {isRtl ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                     </button>
                 )}
 
@@ -193,7 +193,7 @@ const Pagination: React.FC<PaginationProps> = ({
                         onClick={() => onPageChange(currentPage + 1)}
                         className="h-9 md:h-10 w-9 md:w-10 flex items-center justify-center bg-white border border-gray-200 text-black font-extrabold rounded-full hover:bg-gray-50 hover:border-[#f5a623] hover:text-[#f5a623] transition-all duration-200 cursor-pointer shadow-sm"
                     >
-                        {isRtl ? "‹" : "›"}
+                        {isRtl ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
                     </button>
                 )}
             </div>

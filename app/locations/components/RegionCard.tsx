@@ -41,9 +41,11 @@ const RegionCard: React.FC<RegionCardProps> = ({ title, address, mapLink, index 
                 <h2 className="text-base sm:text-lg font-extrabold text-black uppercase tracking-tight mb-4">
                     {title}
                 </h2>
-                <p className="text-sm sm:text-[15px] leading-relaxed text-gray-700 whitespace-pre-line">
-                    {address}
-                </p>
+                <div className="text-sm sm:text-[15px] leading-relaxed text-gray-700 space-y-0.5">
+                    {address.split("\n").map((line, i) => (
+                        <p key={i} dir="ltr" style={{ unicodeBidi: "isolate" }}>{line}</p>
+                    ))}
+                </div>
             </div>
             <a
                 href={mapLink}
