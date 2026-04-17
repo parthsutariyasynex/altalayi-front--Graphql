@@ -328,7 +328,7 @@ const MultiShippingReviewPage: React.FC = () => {
                     return (
                         <div key={group.address.id} className="mb-12 md:mb-24 last:mb-0">
                             <p className="text-[13px] md:text-[14px] font-bold text-black text-center mb-6 md:mb-10 tracking-tight">
-                                {t("multi.address")} {index + 1} <span className="text-gray-400 font-normal">of {groups.length}</span>
+                                {t("multi.address")} {index + 1} <span className="text-gray-400 font-normal">{t("common.of")} {groups.length}</span>
                             </p>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">

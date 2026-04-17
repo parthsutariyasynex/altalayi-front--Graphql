@@ -12,6 +12,7 @@ interface PortalDropdownProps {
     className?: string;
     buttonClassName?: string;
     minWidth?: number;
+    ltrLabels?: boolean;
 }
 
 export default function PortalDropdown({
@@ -22,6 +23,7 @@ export default function PortalDropdown({
     className = "",
     buttonClassName = "",
     minWidth = 70,
+    ltrLabels = false,
 }: PortalDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -79,7 +81,7 @@ export default function PortalDropdown({
                 className={`flex items-center justify-between gap-2 cursor-pointer transition-all ${buttonClassName || "bg-white border border-gray-200 rounded-md px-3 py-2 text-[13px] font-bold text-black hover:border-gray-300 shadow-sm"} ${isOpen ? "border-[#f5a623] z-[9999]" : ""}`}
                 style={{ minWidth }}
             >
-                <span className="truncate">{selected ? selected.label : placeholder}</span>
+                <span className="truncate" {...(ltrLabels ? { dir: "ltr", style: { unicodeBidi: "isolate" } } : {})}>{selected ? selected.label : placeholder}</span>
                 <ChevronDown size={13} className={`text-gray-400 transition-transform flex-shrink-0 ${isOpen ? "rotate-180" : ""}`} />
             </button>
 
@@ -105,6 +107,7 @@ export default function PortalDropdown({
                                 type="button"
                                 onClick={() => { onChange(opt.value); setIsOpen(false); }}
                                 className={`w-full text-left px-3 py-2.5 text-[13px] font-bold cursor-pointer transition-colors border-b last:border-0 border-gray-50 whitespace-nowrap ${String(opt.value) === String(value) ? "bg-[#f5a623] text-black" : "text-gray-700 hover:bg-gray-50 hover:text-[#f5a623]"}`}
+                                {...(ltrLabels ? { dir: "ltr", style: { unicodeBidi: "isolate" as const } } : {})}
                             >
                                 {opt.label}
                             </button>

@@ -302,6 +302,7 @@ export default function DashboardPage() {
                                                         ? [{ label: t("common.noDataFound"), value: "" }]
                                                         : dashboardData.product_groups.map((pg: any) => ({ label: translateData(pg.product_group), value: pg.product_group }))
                                                 }
+                                                ltrLabels
                                                 placeholder={t("m.select")}
                                                 buttonClassName="w-full h-full flex items-center justify-between gap-2 cursor-pointer bg-transparent outline-none ltr:text-left rtl:text-right font-black text-[12px] uppercase tracking-wider text-black"
                                                 className="w-full h-full"
@@ -328,6 +329,7 @@ export default function DashboardPage() {
                                                         ? [{ label: t("common.noDataFound"), value: "" }]
                                                         : dashboardData.tyre_sizes.map((ts: any) => ({ label: translateData(ts.size_pattern), value: ts.size_pattern }))
                                                 }
+                                                ltrLabels
                                                 placeholder={t("m.select")}
                                                 buttonClassName="w-full h-full flex items-center justify-between gap-2 cursor-pointer bg-transparent outline-none ltr:text-left rtl:text-right font-black text-[12px] uppercase tracking-wider text-black"
                                                 className="w-full h-full"

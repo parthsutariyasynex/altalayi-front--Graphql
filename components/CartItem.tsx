@@ -67,7 +67,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                         <h3 className="text-sm font-bold text-gray-900 leading-tight uppercase tracking-tight line-clamp-2">{item.name}</h3>
                         <div className="flex flex-wrap gap-2 mt-3">
                             {item.size_display && (
-                                <div dir="ltr" className="text-[10px] font-bold text-gray-500 bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg">
+                                <div dir="ltr" style={{ unicodeBidi: "isolate" }} className="text-[10px] font-bold text-gray-500 bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg">
                                     {item.size_display}
                                 </div>
                             )}
@@ -123,7 +123,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                         <div className="flex flex-wrap gap-1.5 single-line-attributes">
                             {item.size_display && (
                                 <span className="text-[9px] font-bold text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded-md uppercase">
-                                    {t("m.size")}: <span dir="ltr">{item.size_display}</span>
+                                    {t("m.size")}: <span dir="ltr" style={{ unicodeBidi: "isolate" }}>{item.size_display}</span>
                                 </span>
                             )}
                             {item.pattern_display && (
