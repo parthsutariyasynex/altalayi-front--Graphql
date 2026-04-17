@@ -12,19 +12,19 @@ const RegionGrid: React.FC = () => {
             id: 1,
             title: t("locations.westRegion"),
             address: t("locations.westAddress"),
-            mapLink: "https://www.google.com/maps/place/FazCo+Trading+Company+Limited+Head+Office/@21.4180425,39.2131238,17z"
+            mapLink: "https://www.google.com/maps/search/?api=1&query=FazCo+Trading+Company+Limited+Head+Office+Jeddah"
         },
         {
             id: 2,
             title: t("locations.centRegion"),
             address: t("locations.centAddress"),
-            mapLink: "https://www.google.com/maps/place/Riyadh,+Al-Malaz+St,+Khurais+Road/@24.6869,46.7224,17z"
+            mapLink: "https://www.google.com/maps/search/?api=1&query=Al-Talayi+Company+Riyadh+Khurais+Road"
         },
         {
             id: 3,
             title: t("locations.eastRegion"),
             address: t("locations.eastAddress"),
-            mapLink: "https://www.google.com/maps/place/Al-Kubar,+Al-Rakah+District/@26.2172,50.1971,17z"
+            mapLink: "https://www.google.com/maps/search/?api=1&query=Al-Talayi+Company+Khobar+Al-Rakah"
         }
     ];
 
