@@ -64,7 +64,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                         <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest mb-1 block">{t("quickOrder.title")}</span>
-                        <h3 className="text-sm font-bold text-gray-900 leading-tight uppercase tracking-tight line-clamp-2">{item.name}</h3>
+                        <h3 className="text-sm font-bold text-gray-900 leading-tight uppercase tracking-tight overflow-hidden text-ellipsis whitespace-nowrap" dir="ltr" style={{ unicodeBidi: "isolate" }}>{item.name}</h3>
                         <div className="flex flex-wrap gap-2 mt-3">
                             {item.size_display && (
                                 <div dir="ltr" style={{ unicodeBidi: "isolate" }} className="text-[10px] font-bold text-gray-500 bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg">
@@ -119,7 +119,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, currencyCode, onUpdateQty, on
                         />
                     </div>
                     <div className="min-w-0">
-                        <h3 className="text-xs xl:text-sm font-bold text-gray-900 leading-tight uppercase tracking-tight mb-2 transition-colors group-hover/item:text-black line-clamp-1">{item.name}</h3>
+                        <h3 className="text-xs xl:text-sm font-bold text-gray-900 leading-tight uppercase tracking-tight mb-2 transition-colors group-hover/item:text-black overflow-hidden text-ellipsis whitespace-nowrap" dir="ltr" style={{ unicodeBidi: "isolate" }}>{item.name}</h3>
                         <div className="flex flex-wrap gap-1.5 single-line-attributes">
                             {item.size_display && (
                                 <span className="text-[9px] font-bold text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded-md uppercase">
