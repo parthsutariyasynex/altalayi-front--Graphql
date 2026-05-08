@@ -104,7 +104,7 @@ export default function NotificationsPage() {
     };
 
     const handleLogout = async () => {
-        await signOut({ callbackUrl: lp("/login") });
+        await signOut({ callbackUrl: `${window.location.origin}${lp("/login")}` });
     };
 
     const totalPages = Math.ceil(totalCount / pageSize) || 1;

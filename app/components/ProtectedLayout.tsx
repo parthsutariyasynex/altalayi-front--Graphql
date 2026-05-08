@@ -8,6 +8,7 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 import ScrollToTop from './ScrollToTop';
 import { stripLocaleFromPath, useLocale } from '@/lib/i18n/client';
+import { handleGlobalLogout } from '@/lib/auth/utils';
 
 interface ProtectedLayoutProps {
   children: ReactNode;
@@ -38,9 +39,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
       // Check if Magento token has expired (set by auth-options.ts JWT callback)
       if ((session as any)?.error === 'MagentoTokenExpired') {
-        localStorage.removeItem('token');
-        dispatch({ type: 'LOGOUT' });
-        signOut({ callbackUrl: `/${locale}/login` });
+        handleGlobalLogout(`${window.location.origin}/${locale}/login`);
         return;
       }
 

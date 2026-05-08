@@ -4,6 +4,7 @@ import { getMagentoBaseUrl, isValidLocale, defaultLocale, type Locale } from "@/
 
 /**
  * Decode a Magento JWT token to read its expiry time.
+...
  * Returns the `exp` timestamp (seconds) or null if unreadable.
  */
 function getMagentoTokenExpiry(token: string): number | null {
@@ -102,6 +103,18 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
+        async redirect({ url, baseUrl }) {
+            if (url.startsWith("/")) return `${baseUrl}${url}`;
+            try {
+                const parsed = new URL(url);
+                // Trust any localhost port — dev server may run on a dynamic port
+                if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+                    return url;
+                }
+                if (parsed.origin === new URL(baseUrl).origin) return url;
+            } catch {}
+            return baseUrl;
+        },
         async jwt({ token, user }) {
             // First login — save the Magento token
             if (user) {

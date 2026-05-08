@@ -32,7 +32,7 @@ const Sidebar = () => {
                     })}
                     <li>
                         <button
-                            onClick={() => signOut({ callbackUrl: lp("/login") })}
+                            onClick={() => signOut({ callbackUrl: `${window.location.origin}${lp("/login")}` })}
                             className="block w-full text-left py-3 px-3 text-gray-600 border-l-[3px] border-transparent hover:text-black hover:border-gray-200 transition-all duration-200"
                         >
                             Sign Out

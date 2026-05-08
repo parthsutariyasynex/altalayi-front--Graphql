@@ -1,8 +1,187 @@
+// "use client";
+
+// import Link from "next/link";
+// import { useSession, signOut } from "next-auth/react";
+// import { usePathname } from "next/navigation";
+// import { useSelector, useDispatch } from "react-redux";
+// import { RootState } from "@/store/store";
+// import { useState, useRef, useEffect } from "react";
+// import {
+//   ShoppingCart,
+//   UserCircle,
+//   Bell,
+//   Menu,
+//   X,
+//   LogOut,
+//   Search,
+// } from "lucide-react";
+
+// import CartDrawer from "./CartDrawer";
+// import NotificationDrawer from "./NotificationDrawer";
+// import SearchPopup from "./SearchPopup";
+
+// import { useCart } from "@/modules/cart/hooks/useCart";
+// import { useNotifications } from "@/modules/notifications/hooks/useNotifications";
+// import { fetchCustomerInfo } from "@/store/actions/customerActions";
+// import LanguageSwitcher from "@/components/LanguageSwitcher";
+// import { useTranslation } from "@/hooks/useTranslation";
+// import { useLocale } from "@/lib/i18n/client";
+// import { useLocalePath } from "@/hooks/useLocalePath";
+
+// interface NavLink {
+//   label: string;
+//   href: string;
+//   code?: string;
+// }
+
+// export default function Navbar() {
+//   const { data: session, status } = useSession();
+//   const pathname = usePathname();
+//   const { t, isRtl } = useTranslation();
+//   const locale = useLocale();
+//   const lp = useLocalePath();
+//   const isAuthenticated = status === "authenticated";
+//   const { cart, refetchCart } = useCart();
+//   const [navLinks, setNavLinks] = useState<NavLink[]>([]);
+//   const [navLoading, setNavLoading] = useState(true);
+
+//   const { data: customerData } = useSelector((state: RootState) => state.customer);
+//   const dispatch = useDispatch();
+
+//   const isLoadingName = isAuthenticated && !customerData;
+//   const displayUser = isLoadingName
+//     ? ""
+//     : (customerData as any)?.firstname
+//       ? `${(customerData as any).firstname} ${(customerData as any).lastname || ""}`.trim()
+//       : session?.user?.name || session?.user?.email;
+
+
+//   const [isProfileOpen, setIsProfileOpen] = useState(false);
+//   const [isMenuOpen, setIsMenuOpen] = useState(false);
+//   const [isCartOpen, setIsCartOpen] = useState(false);
+//   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+//   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+//   const [subAccountName, setSubAccountName] = useState<string | null>(null);
+//   const [isSubAccount, setIsSubAccount] = useState(false);
+//   const [isScrolled, setIsScrolled] = useState(false);
+//   const { unreadCount, fetchNotifications: pullNotifications } = useNotifications();
+//   const dropdownRef = useRef<HTMLDivElement>(null);
+
+//   const cartCount = cart?.items_count || 0;
+
+//   const handleLogout = async () => {
+//     localStorage.removeItem("token");
+//     await signOut({ callbackUrl: `${window.location.origin}${lp("/login")}` });
+//   };
+
+//   useEffect(() => {
+//     if (typeof window !== "undefined") {
+//       setSubAccountName(localStorage.getItem("subAccountName"));
+//       setIsSubAccount(localStorage.getItem("isSubAccount") === "true");
+//     }
+//   }, [pathname]);
+
+//   useEffect(() => {
+//     if (isAuthenticated) {
+//       pullNotifications();
+//       if (!customerData) dispatch(fetchCustomerInfo() as any);
+//     }
+//   }, [isAuthenticated, pullNotifications, customerData, dispatch]);
+
+//   // Refetch customer info when locale changes so name matches the language
+//   useEffect(() => {
+//     if (isAuthenticated && customerData) {
+//       dispatch(fetchCustomerInfo() as any);
+//     }
+//   // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [locale]);
+
+//   useEffect(() => {
+//     const fn = () => pullNotifications();
+//     window.addEventListener("notifications-updated", fn);
+//     return () => window.removeEventListener("notifications-updated", fn);
+//   }, [pullNotifications]);
+
+//   useEffect(() => {
+//     const fn = () => refetchCart();
+//     window.addEventListener("cart-updated", fn);
+//     return () => window.removeEventListener("cart-updated", fn);
+//   }, [refetchCart]);
+
+//   useEffect(() => {
+//     const handleClickOutside = (e: MouseEvent) => {
+//       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
+//         setIsProfileOpen(false);
+//     };
+//     document.addEventListener("mousedown", handleClickOutside);
+//     return () => document.removeEventListener("mousedown", handleClickOutside);
+//   }, []);
+
+//   useEffect(() => {
+//     const handleScroll = () => {
+//       setIsScrolled(window.scrollY > 0);
+//     };
+//     window.addEventListener('scroll', handleScroll);
+//     return () => window.removeEventListener('scroll', handleScroll);
+//   }, []);
+
+//   // Fetch dynamic menu from API (re-fetches when locale changes)
+//   useEffect(() => {
+//     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+//     let cancelled = false;
+
+//     const fetchMenu = async () => {
+//       try {
+//         setNavLoading(true);
+//         const fetchLocale = window.location.pathname.startsWith("/ar") ? "ar" : "en";
+//         const headers: Record<string, string> = {
+//           "Content-Type": "application/json",
+//           "x-locale": fetchLocale,
+//         };
+
+//         if (token) {
+//           headers.Authorization = `Bearer ${token}`;
+//         }
+
+//         const res = await fetch("/api/kleverapi/menu", {
+//           credentials: "same-origin",
+//           headers,
+//         });
+//         if (cancelled) return;
+//         if (!res.ok) throw new Error("Menu fetch failed");
+//         const data = await res.json();
+//         if (cancelled) return;
+
+//         if (Array.isArray(data) && data.length > 0) {
+//           setNavLinks(data.map((item: any) => ({
+//             label: item.label,
+//             href: item.href,
+//             code: item.code,
+//           })));
+//         } else {
+//           setNavLinks([]);
+//         }
+//       } catch {
+//         setNavLinks([]);
+//       } finally {
+//         if (!cancelled) setNavLoading(false);
+//       }
+//     };
+
+//     fetchMenu();
+//     return () => { cancelled = true; };
+//   }, [locale]);
+
+
+
 "use client";
 
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { handleGlobalLogout } from "@/lib/auth/utils";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import { useState, useRef, useEffect } from "react";
@@ -14,6 +193,7 @@ import {
   X,
   LogOut,
   Search,
+  ChevronDown,
 } from "lucide-react";
 
 import CartDrawer from "./CartDrawer";
@@ -23,36 +203,61 @@ import SearchPopup from "./SearchPopup";
 import { useCart } from "@/modules/cart/hooks/useCart";
 import { useNotifications } from "@/modules/notifications/hooks/useNotifications";
 import { fetchCustomerInfo } from "@/store/actions/customerActions";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+
 import { useTranslation } from "@/hooks/useTranslation";
-import { useLocale } from "@/lib/i18n/client";
 import { useLocalePath } from "@/hooks/useLocalePath";
+import { isValidLocale } from "@/lib/i18n/config";
+import { setLocaleCookie } from "@/lib/i18n/client";
 
 interface NavLink {
   label: string;
   href: string;
   code?: string;
+  magentoUrl?: string;
+  categoryId?: string | null;
+  children?: { label: string; href: string }[];
 }
 
-const FALLBACK_NAV_KEYS: { key: string; href: string }[] = [
-  { key: "nav.allTyres", href: "/products" },
-  { key: "nav.quickOrder", href: "/quick-order" },
-  { key: "nav.aboutUs", href: "/about" },
-  { key: "nav.branchLocations", href: "/locations" },
-  { key: "nav.userGuides", href: "/guides" },
-  { key: "nav.productCatalogue", href: "/catalogue" },
-];
+// Any nav item that has a categoryId shows the warehouse dropdown on hover.
+function isWarehouseCategory(item: { label?: string; categoryId?: string | null }): boolean {
+  const label = (item.label || "").toLowerCase();
+  // Show warehouse dropdown for items with categoryId OR specific keywords
+  return !!item.categoryId || label.includes("lubricant") || label.includes("tyre");
+}
+
+// Warehouse item shape — populated dynamically from /api/kleverapi/source-permission
+interface WarehouseItem { label: string; code: string; storeUrl: string; }
 
 export default function Navbar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
-  const { t, isRtl } = useTranslation();
-  const locale = useLocale();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t, isRtl, locale } = useTranslation();
   const lp = useLocalePath();
+
+  // Store code lives in the URL path prefix (e.g. /V101_en/all-tyres) — not a query param.
+  // Fall back to ?store= for any legacy URLs that still carry it.
+  const STORE_CODE_RE = /^[A-Za-z0-9]+_(en|ar)$/;
+  const pathnameFirstSeg = pathname?.split("/").filter(Boolean)[0] || "";
+  const currentStore = (STORE_CODE_RE.test(pathnameFirstSeg) || isValidLocale(pathnameFirstSeg))
+    ? pathnameFirstSeg
+    : (searchParams?.get("store") || "");
+
+  // Strip locale or store-code prefix from a path for prefix-agnostic comparison.
+  const stripPrefix = (path: string) => {
+    const segs = (path || "").split("/").filter(Boolean);
+    const first = segs[0] || "";
+    if (isValidLocale(first) || STORE_CODE_RE.test(first)) return "/" + segs.slice(1).join("/") || "/";
+    return path || "/";
+  };
   const isAuthenticated = status === "authenticated";
   const { cart, refetchCart } = useCart();
-  const [navLinks, setNavLinks] = useState<NavLink[]>(FALLBACK_NAV_KEYS.map(n => ({ label: t(n.key), href: n.href })));
+  const [navLinks, setNavLinks] = useState<NavLink[]>([]);
   const [navLoading, setNavLoading] = useState(true);
+  const [warehouseItems, setWarehouseItems] = useState<WarehouseItem[]>([]);
+  const [storeDropOpen, setStoreDropOpen] = useState(false);
+  const storeDropRef = useRef<HTMLDivElement>(null);
 
   const { data: customerData } = useSelector((state: RootState) => state.customer);
   const dispatch = useDispatch();
@@ -76,12 +281,12 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const { unreadCount, fetchNotifications: pullNotifications } = useNotifications();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const logoutCalledRef = useRef(false);
 
   const cartCount = cart?.items_count || 0;
 
   const handleLogout = async () => {
-    localStorage.removeItem("token");
-    await signOut({ callbackUrl: `${window.location.origin}${lp("/login")}` });
+    await handleGlobalLogout(lp("/login"));
   };
 
   useEffect(() => {
@@ -92,19 +297,25 @@ export default function Navbar() {
   }, [pathname]);
 
   useEffect(() => {
+    if (status === "authenticated") {
+      const sess = session as any;
+      if (sess?.error === "MagentoTokenExpired" && !logoutCalledRef.current) {
+        logoutCalledRef.current = true;
+        handleLogout();
+      }
+    }
+    // Reset guard when session becomes valid again (fresh login)
+    if (status !== "authenticated") {
+      logoutCalledRef.current = false;
+    }
+  }, [status, session]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       pullNotifications();
       if (!customerData) dispatch(fetchCustomerInfo() as any);
     }
   }, [isAuthenticated, pullNotifications, customerData, dispatch]);
-
-  // Refetch customer info when locale changes so name matches the language
-  useEffect(() => {
-    if (isAuthenticated && customerData) {
-      dispatch(fetchCustomerInfo() as any);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale]);
 
   useEffect(() => {
     const fn = () => pullNotifications();
@@ -128,6 +339,15 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (storeDropRef.current && !storeDropRef.current.contains(e.target as Node))
+        setStoreDropOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 0);
     };
@@ -137,43 +357,84 @@ export default function Navbar() {
 
   // Fetch dynamic menu from API (re-fetches when locale changes)
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-    // No token (login page) — use fallback links immediately, no API call
-    if (!token) {
-      setNavLinks(FALLBACK_NAV_KEYS.map(n => ({ label: t(n.key), href: n.href })));
-      setNavLoading(false);
-      return;
-    }
-
     let cancelled = false;
-    const fetchMenu = async () => {
+
+    const CACHE_KEY = `navmenu_${locale}`;
+    const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 h
+
+    const toLinks = (raw: any[]): NavLink[] =>
+      raw.map((item: any) => ({
+        label: item.label,
+        href: item.href,
+        code: item.code,
+        magentoUrl: item.magentoUrl,
+        categoryId: item.categoryId ?? null,
+        children: item.children && item.children.length > 0 ? item.children : undefined,
+      }));
+
+    const applyLinks = (links: NavLink[]) => {
+      setNavLinks(links);
+      const firstCat = links.find((l) => l.categoryId);
+      if (firstCat?.categoryId && typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("defaultCategoryId", firstCat.categoryId);
+      }
+    };
+
+    const readLocalCache = (): NavLink[] | null => {
       try {
+        const raw = typeof window !== "undefined" ? localStorage.getItem(CACHE_KEY) : null;
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed.expires > Date.now() && Array.isArray(parsed.items) && parsed.items.length > 0)
+          return parsed.items;
+      } catch { }
+      return null;
+    };
+
+    const fetchMenu = async () => {
+      // Immediately show cached data so menu appears before API responds
+      const localCached = readLocalCache();
+      if (localCached) {
+        applyLinks(localCached);
+        setNavLoading(false);
+      } else {
         setNavLoading(true);
-        const fetchLocale = window.location.pathname.startsWith("/ar") ? "ar" : "en";
+      }
+
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
         const res = await fetch("/api/kleverapi/menu", {
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-            "x-locale": fetchLocale,
+            ...(token && { "Authorization": `Bearer ${token}` }),
+            "x-locale": locale,
           },
         });
+
         if (cancelled) return;
-        if (!res.ok) throw new Error("Menu fetch failed");
+
+        if (!res.ok) {
+          throw new Error("Menu fetch failed");
+        }
+
         const data = await res.json();
         if (cancelled) return;
 
         if (Array.isArray(data) && data.length > 0) {
-          setNavLinks(data.map((item: any) => ({
-            label: item.label,
-            href: item.href,
-            code: item.code,
-          })));
-        } else {
-          setNavLinks(FALLBACK_NAV_KEYS.map(n => ({ label: t(n.key), href: n.href })));
+          const links = toLinks(data);
+          applyLinks(links);
+          // Save fresh data to localStorage for future page loads
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ items: links, expires: Date.now() + CACHE_TTL }));
+          } catch { }
+        } else if (!localCached) {
+          setNavLinks([]);
         }
-      } catch {
-        setNavLinks(FALLBACK_NAV_KEYS.map(n => ({ label: t(n.key), href: n.href })));
+      } catch (err) {
+        console.error("[Navbar] Menu fetch error:", err);
+        // Keep the locally-cached links if we had them; only clear if nothing
+        if (!cancelled && !localCached) setNavLinks([]);
       } finally {
         if (!cancelled) setNavLoading(false);
       }
@@ -182,6 +443,86 @@ export default function Navbar() {
     fetchMenu();
     return () => { cancelled = true; };
   }, [locale]);
+
+  // Fetch warehouse list for the "All Lubricants"/"All Tyres" dropdown.
+  // Matches the live Magento site — enabled/disabled by admin via source-permission.
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    let cancelled = false;
+    (async () => {
+      try {
+        // Use `locale` state directly — see menu-fetch comment above.
+        const res = await fetch("/api/kleverapi/source-permission", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "x-locale": locale,
+          },
+        });
+        if (!res.ok) {
+          if (res.status === 401) {
+            setWarehouseItems([]);
+            return;
+          }
+          throw new Error("source-permission fetch failed");
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[Navbar] source-permission raw response:", data);
+        }
+        const raw: any[] = Array.isArray(data?.permitted_stores)
+          ? data.permitted_stores
+          : (Array.isArray(data) ? data : []);
+
+        // Show stores matching the current locale for the nav hover dropdown.
+        const filtered = raw.filter((s) =>
+          s?.is_active !== false &&
+          (String(s.store_code).endsWith(`_${locale}`) || String(s.store_code) === locale)
+        );
+
+        // Map stores to WarehouseItem shape.
+        const mapped: WarehouseItem[] = filtered.map((s) => {
+          const storeCode = String(s.store_code ?? "");
+          const label = String(s.group_name || s.store_name || s.website_name || "");
+
+          return {
+            label: label,
+            code: storeCode,
+            storeUrl: String(s.store_url ?? ""),
+          };
+        }).filter((w) => !!w.label);
+
+        setWarehouseItems(mapped);
+        // Persist the first permitted warehouse so the products page can use it
+        // as a fallback when no store is selected (direct nav to "All Tyres").
+        if (mapped.length > 0 && typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem("defaultStoreCode", mapped[0].code);
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[Navbar] source-permission/stores fetch failed:", err);
+        }
+        if (!cancelled) setWarehouseItems([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, locale]);
+
+  // Resolve the display label for a menu item in the following precedence:
+  //   1. code → CODE_TO_TRANSLATION_KEY (most stable across locales)
+  //   2. href → HREF_TO_TRANSLATION_KEY (fallback for APIs that don't return code)
+  //   3. raw item.label from the API (may be stale-locale text)
+  // This runs at render time, so toggling /en ↔ /ar re-renders labels instantly
+  // without waiting for the menu re-fetch to complete.
+  const resolveLabel = (item: { code?: string; href?: string; label?: string }): string => {
+    return item.label || "";
+  };
+
+
+
+
+
 
   return (
     <div className={`main-header w-full ${isScrolled ? 'fixed fadeInDown' : 'relative'} top-0 left-0 right-0 z-[60] flex flex-col transition-all duration-300 ease-in-out`}>
@@ -335,34 +676,36 @@ export default function Navbar() {
       </header>
 
       {/* ── YELLOW NAV BAR — desktop only ── */}
-      <nav className="bg-[#f5b21a] w-full hidden lg:block">
-        <div className="flex items-center justify-center max-w-[1280px] mx-auto px-2 lg:px-4">
-          {navLoading ? (
-            <div className="flex items-center gap-6">
-              {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="h-3 w-20 bg-yellow-500/40 rounded animate-pulse" />
-              ))}
-            </div>
-          ) : (
-            navLinks.map((item) => {
-              const href = lp(item.href);
-              const isActive = pathname === href || pathname?.startsWith(href + "/");
-              return (
-                <Link
-                  key={item.href}
-                  href={href}
-                  className={`py-3 flex items-center h-full px-2.5 lg:px-7 text-[11px] lg:text-[16px] font-semibold capitalize transition-all duration-200 whitespace-nowrap ${isActive
-                    ? "bg-black text-white"
-                    : "text-black hover:bg-black hover:text-white"
-                    }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })
-          )}
-        </div>
-      </nav>
+      {(navLoading || navLinks.length > 0) && (
+        <nav className="bg-[#f5b21a] w-full hidden lg:block">
+          <div className="flex items-center justify-center max-w-[1280px] mx-auto px-2 lg:px-4">
+            {navLoading ? (
+              <div className="flex items-center gap-6">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="h-3 w-20 bg-yellow-500/40 rounded animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              navLinks.map((item) => {
+                const href = lp(item.href);
+                const isActive = pathname === href || pathname?.startsWith(href + "/");
+                return (
+                  <Link
+                    key={item.href || item.code || item.label}
+                    href={href}
+                    className={`py-3 flex items-center h-full px-2.5 lg:px-7 text-[11px] lg:text-[16px] font-semibold capitalize transition-all duration-200 whitespace-nowrap ${isActive
+                      ? "bg-black text-white"
+                      : "text-black hover:bg-black hover:text-white"
+                      }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </nav>
+      )}
 
       {/* ── MOBILE DRAWER ── */}
       {isMenuOpen && (
