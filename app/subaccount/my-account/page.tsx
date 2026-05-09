@@ -55,7 +55,7 @@ export default function SubAccountMyAccountPage() {
             setIsSubAccountSession(isSub);
 
             if (!isSub) {
-                router.replace(lp("/my-account"));
+                router.replace(lp("/customer/account"));
                 return;
             }
 
@@ -251,14 +251,14 @@ export default function SubAccountMyAccountPage() {
                                         <div className="pt-8">
                                             {defaultShipping?.id ? (
                                                 <Link
-                                                    href={lp(`/customer/address-book/edit/${defaultShipping.id}`)}
+                                                    href={lp(`/customer/address/edit/id/${defaultShipping.id}`)}
                                                     className="bg-[#F5B21B] hover:bg-[#e0a116] text-black text-[12px] md:text-[13px] font-bold px-6 md:px-8 py-2 md:py-2.5 uppercase transition-all rounded-none inline-block w-full sm:w-auto text-center"
                                                 >
                                                     EDIT ADDRESS
                                                 </Link>
                                             ) : (
                                                 <Link
-                                                    href={lp("/customer/address-book")}
+                                                    href={lp("/customer/address")}
                                                     className="bg-[#F5B21B] hover:bg-[#e0a116] text-black text-[12px] md:text-[13px] font-bold px-6 md:px-8 py-2 md:py-2.5 uppercase transition-all rounded-none inline-block w-full sm:w-auto text-center"
                                                 >
                                                     ADD ADDRESS

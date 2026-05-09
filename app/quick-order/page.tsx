@@ -369,12 +369,12 @@ export default function QuickOrderPage() {
             await refetchCart();
             toast.success(data?.message || t("quickOrder.addedToCart"), { id: toastId });
             setItems([]);
-            router.push(lp("/cart"));
+            router.push(lp("/checkout/cart"));
         } catch (err: any) {
             console.error("Add to cart partial error:", err);
             await refetchCart();
             toast.error(err || t("quickOrder.someFailed"), { id: toastId });
-            router.push(lp("/cart"));
+            router.push(lp("/checkout/cart"));
         } finally {
             setLoading(false);
         }

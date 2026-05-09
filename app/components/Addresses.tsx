@@ -102,7 +102,7 @@ export default function Addresses() {
 
   const handleAddressAction = async (action: string, addressId: number | string) => {
     if (action === "edit") {
-      router.push(lp(`/customer/address-book/edit/${addressId}`));
+      router.push(lp(`/customer/address/edit/id/${addressId}`));
       return;
     }
 

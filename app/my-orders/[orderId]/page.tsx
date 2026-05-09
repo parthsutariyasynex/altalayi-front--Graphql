@@ -209,7 +209,7 @@ export default function OrderDetailsPage() {
 
             await refetchCart();
             toast.success("Items added to cart", { id: toastId });
-            router.push(lp("/cart"));
+            router.push(lp("/checkout/cart"));
         } catch (err: any) {
             toast.error(err.message || "Something went wrong", { id: toastId });
         }

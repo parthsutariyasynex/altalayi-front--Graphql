@@ -24,26 +24,30 @@ import { useLocale } from "@/lib/i18n/client";
 
 const PAGE_SIZE = 20;
 
-// Translation keys for table headers — resolved inside the component using t()
-const TABLE_HEADER_KEYS = ['m.brand', 'm.size', 'm.pattern', 'm.year', 'm.origin', 'm.image', 'm.offer', 'm.stock', 'm.price', 'm.action'] as const;
-const COL_WIDTHS = ['8%', '13%', '13%', '6%', '7%', '7%', '9%', '9%', '10%', '110px'] as const;
+// Translation keys for table headers — resolved inside the component using t().
+// The Action column is appended dynamically at runtime when at least one product
+// in the current page has `is_action === "Yes"`.
+const BASE_HEADER_KEYS = ['m.brand', 'm.size', 'm.pattern', 'm.year', 'm.origin', 'm.image', 'm.offer', 'm.stock', 'm.price'] as const;
+const ACTION_HEADER_KEY = 'm.action' as const;
+const BASE_COL_WIDTHS = ['8%', '13%', '13%', '6%', '7%', '7%', '9%', '9%', '10%'] as const;
+const ACTION_COL_WIDTH = '110px' as const;
 const SHIMMER_ROWS = 10;
 const ROW_HEIGHT = 'h-auto md:h-[52px]';
 
-function TableColGroup() {
+function TableColGroup({ widths }: { widths: readonly string[] }) {
   return (
     <colgroup>
-      {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
+      {widths.map((w, i) => <col key={i} style={{ width: w }} />)}
     </colgroup>
   );
 }
 
-function ShimmerRows() {
+function ShimmerRows({ columnCount }: { columnCount: number }) {
   return (
     <>
       {Array.from({ length: SHIMMER_ROWS }).map((_, i) => (
         <tr key={`shimmer-${i}`} className={`animate-pulse ${ROW_HEIGHT}`}>
-          {TABLE_HEADER_KEYS.map((_, j) => (
+          {Array.from({ length: columnCount }).map((_, j) => (
             <td key={j} className="px-4">
               <div className="h-3 bg-gray-100 rounded w-full"></div>
             </td>
@@ -126,29 +130,57 @@ export default function ProductsPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favIds, setFavIds] = useState<number[]>([]);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
     const stored = localStorage.getItem("favourites");
     if (stored) setFavIds(JSON.parse(stored));
     if (searchParams) {
+      const catId = searchParams.get("categoryId")
+        || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("defaultCategoryId") : null);
+      setCategoryId(catId);
       const { filters, page, sortBy } = parseMagentoQueryParams(searchParams);
       if (Object.keys(filters).length > 0) setSelectedFilters(filters);
       setCurrentPage(page);
       setSortBy(sortBy);
+      setIsInitialized(true);
     }
-    setIsInitialized(true);
   }, [searchParams]);
 
   useEffect(() => {
     if (!isMounted) return;
-    const newUrlParams = formatMagentoQueryParams(selectedFilters, currentPage, sortBy);
-    const currentUrlParams = searchParams?.toString() || "";
-    if (newUrlParams !== currentUrlParams) {
-      const newUrl = `${window.location.pathname}${newUrlParams ? `?${newUrlParams}` : ""}`;
-      router.replace(newUrl, { scroll: false });
+    const filterParams = formatMagentoQueryParams(selectedFilters, currentPage, sortBy);
+
+    // categoryId only belongs in the URL when the user is on /products directly.
+    // For Magento SEO URLs (/en/all-tyres/car-tyres.html), middleware injects it on
+    // every navigation, so we must not duplicate it in the visible browser URL.
+    const path = typeof window !== "undefined" ? window.location.pathname : "";
+    const isMagentoSeoUrl = !/^\/(en|ar)\/products(\/|$)?/.test(path);
+
+    const browserHasCategoryId = (() => {
+      if (typeof window === "undefined") return false;
+      return new URLSearchParams(window.location.search).has("categoryId");
+    })();
+
+    const currentFilterParams = (() => {
+      if (!searchParams) return "";
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.delete("categoryId");
+      return sp.toString();
+    })();
+    if (filterParams === currentFilterParams) return;
+
+    const parts: string[] = [];
+    // Include categoryId only if we're on /products AND user explicitly had it,
+    // OR if it's not a Magento SEO URL (in which case middleware can't inject it).
+    if (categoryId && !isMagentoSeoUrl && browserHasCategoryId) {
+      parts.push(`categoryId=${categoryId}`);
     }
-  }, [selectedFilters, currentPage, sortBy, isMounted, router, searchParams]);
+    if (filterParams) parts.push(filterParams);
+    const newUrl = `${path}${parts.length ? `?${parts.join("&")}` : ""}`;
+    router.replace(newUrl, { scroll: false });
+  }, [selectedFilters, currentPage, sortBy, isMounted, router, searchParams, categoryId]);
 
   const toggleFavorite = async (product: any) => {
     const { product_id: productId } = product;
@@ -170,11 +202,13 @@ export default function ProductsPage() {
         }
       }
     }
-    router.push(lp("/favorites"));
+    router.push(lp("/wishlist"));
   };
 
   const [debouncedFilters, setDebouncedFilters] = useState(selectedFilters);
   const isFirstRender = useRef(true);
+  const prevCategoryIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     // On first render after init, apply filters immediately (no debounce)
     if (isFirstRender.current && isInitialized) {
@@ -186,39 +220,52 @@ export default function ProductsPage() {
     return () => clearTimeout(handler);
   }, [selectedFilters, isInitialized]);
 
+  // Reset filters immediately when the user navigates to a different category
   useEffect(() => {
-    if (!isInitialized) return; // Don't fetch until URL params are parsed
+    if (prevCategoryIdRef.current !== null && categoryId !== prevCategoryIdRef.current) {
+      setSelectedFilters({});
+      setSelectedFilterLabels({});
+      setDebouncedFilters({});
+      setCurrentPage(1);
+      setSortBy("none");
+    }
+    prevCategoryIdRef.current = categoryId;
+  }, [categoryId]);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (!categoryId) {
+      // No category resolved yet — clear data and show empty state instead of skeleton
+      setProducts([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
     const abortController = new AbortController();
     const loadProducts = async () => {
       try {
         setLoading(true);
         setError("");
-        // Token comes from localStorage (set by ProtectedLayout after session sync).
-        // If token is missing, just skip the fetch silently (ProtectedLayout will set it).
         const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
         if (!token) return;
-        // Read locale from multiple sources for reliability
         let fetchLocale = "en";
         if (window.location.pathname.startsWith("/ar")) fetchLocale = "ar";
         else {
           const cookieMatch = document.cookie.match(/NEXT_LOCALE=([^;]+)/);
           if (cookieMatch?.[1] === "ar") fetchLocale = "ar";
         }
-        // console.log("[PRODUCTS FETCH]", fetchLocale);
         const headers: HeadersInit = { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, "x-locale": fetchLocale };
         const queryString = formatMagentoQueryParams(debouncedFilters, currentPage, sortBy);
-        const url = `/api/category-products?${queryString}&categoryId=5&pageSize=${PAGE_SIZE}&lang=${fetchLocale}`;
+        const url = `/api/category-products?${queryString}&categoryId=${categoryId}&pageSize=${PAGE_SIZE}&lang=${fetchLocale}`;
         const res = await fetch(url, { headers, signal: abortController.signal });
         if (!res.ok) {
           if (res.status === 401) { localStorage.removeItem("token"); redirectToLogin(router); return; }
           throw new Error(`API Error: ${res.status}`);
         }
         const data = await res.json();
-        console.log("[PRODUCTS DEBUG] Response keys:", Object.keys(data), "products:", Array.isArray(data.products) ? data.products.length : "not array", "items:", Array.isArray(data.items) ? data.items.length : "not array", "total_count:", data.total_count);
         const productArray = Array.isArray(data.products) ? data.products : (Array.isArray(data.items) ? data.items : []);
         const total = typeof data.total_count === "number" ? data.total_count : productArray.length;
 
-        // Map items to ensure final_price and original_price are consistent
         const mappedProducts = productArray.map((p: any) => {
           const finalPrice = Number(p.final_price || p.special_price || p.price || 0);
           const potentialOldPrice = Number(p.price || p.regular_price || p.original_price || p.old_price || 0);
@@ -240,9 +287,7 @@ export default function ProductsPage() {
     };
     loadProducts();
     return () => abortController.abort();
-  }, [router, currentPage, debouncedFilters, sortBy, isInitialized]);
-  // Note: locale intentionally excluded — fetchLocale reads from window.location directly
-  // Adding locale here causes double-fetch and abort race condition
+  }, [router, currentPage, debouncedFilters, sortBy, isInitialized, categoryId]);
 
   const handleFilterChange = useCallback(
     (filters: Record<string, string[]>, labels: Record<string, { value: string; label: string }[]>) => {
@@ -314,7 +359,20 @@ export default function ProductsPage() {
     return result;
   }, [products, sortBy, isFavorite, favIds, selectedFilters]);
 
-  const totalColumns = 10;
+  // Dynamic action-column visibility: include the column only if the current
+  // page has at least one product with is_action === "Yes". Otherwise the
+  // whole column (header + cells + colgroup width + colSpan) is omitted.
+  const showActionColumn = useMemo(
+    () => products.some((p: any) => p?.is_action === "Yes"),
+    [products]
+  );
+  const headerKeys: readonly string[] = showActionColumn
+    ? [...BASE_HEADER_KEYS, ACTION_HEADER_KEY]
+    : BASE_HEADER_KEYS;
+  const colWidths: readonly string[] = showActionColumn
+    ? [...BASE_COL_WIDTHS, ACTION_COL_WIDTH]
+    : BASE_COL_WIDTHS;
+  const totalColumns = headerKeys.length;
   const hasSizeFilter = selectedFilters["width"] || selectedFilters["height"] || selectedFilters["rim"];
   const displayCount = hasSizeFilter ? sortedProducts.length : totalCount;
   const totalPages = Math.ceil(displayCount / PAGE_SIZE);
@@ -394,27 +452,29 @@ export default function ProductsPage() {
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {!isOutOfStock ? (
-              <button
-                onClick={() => handleAddToCart(product)}
-                disabled={addingToCart === product.sku}
-                className={`h-9 px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] font-black uppercase shadow-sm active:scale-95 cursor-pointer flex-shrink-0 ${justAdded === product.sku ? "bg-green-500 text-white" : "bg-[#f5b21a] text-black"}`}
-              >
-                {addingToCart === product.sku ? (
-                  <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                ) : justAdded === product.sku ? (
-                  <><Check size={14} strokeWidth={3} /> {t("favorites.cartAdded")}</>
-                ) : (
-                  <><ShoppingCart size={14} strokeWidth={2.5} /></>
-                )}
-              </button>
-            ) : (
-              <button
-                onClick={() => { setInquiryProduct(product); setIsInquiryModalOpen(true); }}
-                className="h-9 px-2.5 bg-[#f5b21a] text-black rounded-lg flex items-center gap-1.5 text-[11px] font-black uppercase shadow-sm active:scale-95 cursor-pointer flex-shrink-0"
-              >
-                <Info size={14} strokeWidth={2.5} />
-              </button>
+            {String(product?.is_action).toLowerCase() === "yes" && (
+              !isOutOfStock ? (
+                <button
+                  onClick={() => handleAddToCart(product)}
+                  disabled={addingToCart === product.sku}
+                  className={`h-9 px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] font-black uppercase shadow-sm active:scale-95 cursor-pointer flex-shrink-0 ${justAdded === product.sku ? "bg-green-500 text-white" : "bg-[#f5b21a] text-black"}`}
+                >
+                  {addingToCart === product.sku ? (
+                    <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                  ) : justAdded === product.sku ? (
+                    <><Check size={14} strokeWidth={3} /> {t("favorites.cartAdded")}</>
+                  ) : (
+                    <><ShoppingCart size={14} strokeWidth={2.5} /></>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setInquiryProduct(product); setIsInquiryModalOpen(true); }}
+                  className="h-9 px-2.5 bg-[#f5b21a] text-black rounded-lg flex items-center gap-1.5 text-[11px] font-black uppercase shadow-sm active:scale-95 cursor-pointer flex-shrink-0"
+                >
+                  <Info size={14} strokeWidth={2.5} />
+                </button>
+              )
             )}
             <button
               onClick={() => toggleFavorite(product)}
@@ -508,7 +568,7 @@ export default function ProductsPage() {
           <div className="xl:hidden flex flex-col gap-2 mb-3">
             {/* Controls: 2 cols on mobile, 4 cols on tablet */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button onClick={() => router.push(lp("/favorites"))} className="h-[44px] bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider shadow-sm active:scale-95 cursor-pointer">
+              <button onClick={() => router.push(lp("/wishlist"))} className="h-[44px] bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider shadow-sm active:scale-95 cursor-pointer">
                 <Star className="w-4 h-4 fill-black text-black" /> {t("m.favourite-products")}
               </button>
               <button onClick={() => setIsMobileSearchOpen(true)} className="h-[44px] bg-[#f5b21a] rounded-xl flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider shadow-sm active:scale-95 cursor-pointer">
@@ -579,7 +639,7 @@ export default function ProductsPage() {
             {/* Desktop header */}
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center gap-4 min-h-[60px]">
               <div className="flex items-center gap-4">
-                <button onClick={() => router.push(lp("/favorites"))} className="bg-gray-50 border border-gray-200 text-black px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm text-xs font-bold active:scale-95 cursor-pointer uppercase tracking-wider">
+                <button onClick={() => router.push(lp("/wishlist"))} className="bg-gray-50 border border-gray-200 text-black px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm text-xs font-bold active:scale-95 cursor-pointer uppercase tracking-wider">
                   <Star className="w-5 h-5 fill-black text-black" /> {t("sidebar.favoriteProducts")}
                 </button>
                 <div className="flex flex-1 items-center gap-2 overflow-x-auto custom-scrollbar-hide max-w-[800px]">
@@ -610,89 +670,103 @@ export default function ProductsPage() {
             {/* Desktop table area */}
             <div className="flex-1 overflow-x-auto">
               <table className="w-full border-collapse table-fixed min-w-[900px]">
-                <TableColGroup />
+                <TableColGroup widths={colWidths} />
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-gray-50 border-b-2 border-gray-200">
-                    {TABLE_HEADER_KEYS.map(key => (
+                    {headerKeys.map(key => (
                       <th key={key} className="px-2 md:px-4 py-2 md:py-3 text-[11px] font-black text-black uppercase tracking-widest text-center">{t(key)}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {loading ? <ShimmerRows /> : products.length === 0 ? (
-                    <tr><td colSpan={totalColumns} className="py-24 text-center"><p className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">{t("products.noProducts")}</p></td></tr>
-                  ) : sortedProducts.map((product, index) => {
-                    const brandName = product?.brand || (product?.name ? product.name.split(' ')[0] : "N/A");
-                    const isOutOfStock = product.stock_status === "Not Available" || Number(product?.stock_qty ?? 0) <= 0;
-                    return (
-                      <tr key={index} className={`hover:bg-gray-50/50 transition-colors group ${ROW_HEIGHT}`}>
-                        <td className="px-2 md:px-4 text-[12px] font-normal text-gray-700 text-center">{t(`data.${brandName}`) !== `data.${brandName}` ? t(`data.${brandName}`) : brandName}</td>
-                        <td className="px-2 md:px-4 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span dir="ltr" className="text-[12px] font-normal text-gray-900 tracking-tight">{product?.tyre_size}</span>
-                            <div onClick={() => setSelectedProduct(product)} className="w-4 h-4 bg-gray-900 rounded-full flex items-center justify-center text-[9px] font-bold text-white cursor-pointer hover:bg-yellow-400 hover:text-black transition-all shadow-sm flex-shrink-0">i</div>
-                          </div>
-                        </td>
-                        <td className="px-2 md:px-4 text-[12px] font-normal text-gray-600 text-center">{product?.pattern || "—"}</td>
-                        <td className="px-2 md:px-4 text-[12px] font-normal text-gray-500 text-center font-mono">{product?.year || "—"}</td>
-                        <td className="px-2 md:px-4 text-[12px] font-normal text-gray-600 text-center">{product?.origin ? (t(`data.${product.origin}`) !== `data.${product.origin}` ? t(`data.${product.origin}`) : product.origin) : "—"}</td>
-                        <td className="px-2 md:px-4 text-center">
-                          <div className="w-10 h-10 mx-auto">
-                            {product?.image_url ? (
-                              <div className="relative w-10 h-10 group/img cursor-pointer" onClick={() => { setSelectedImage(product.image_url); setPreviewProduct(product); setIsImageModalOpen(true); }}>
-                                <img src={product.image_url} alt={product.name} width={40} height={40} className="w-10 h-10 object-contain rounded border border-gray-100 shadow-sm" />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center rounded">
-                                  <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-black font-bold text-[10px] shadow-lg transform scale-50 group-hover/img:scale-100 transition-transform duration-300">+</div>
+                  {loading ? (
+                    <ShimmerRows columnCount={totalColumns} />
+                  ) : products.length === 0 ? (
+                    <tr>
+                      <td colSpan={totalColumns} className="py-24 text-center">
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                          {t("products.noProducts")}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedProducts.map((product, index) => {
+                      const brandName = product?.brand || (product?.name ? product.name.split(' ')[0] : "N/A");
+                      const isOutOfStock = product.stock_status === "Not Available" || Number(product?.stock_qty ?? 0) <= 0;
+                      return (
+                        <tr key={index} className={`hover:bg-gray-50/50 transition-colors group ${ROW_HEIGHT}`}>
+                          <td className="px-2 md:px-4 text-[12px] font-normal text-gray-700 text-center">{t(`data.${brandName}`) !== `data.${brandName}` ? t(`data.${brandName}`) : brandName}</td>
+                          <td className="px-2 md:px-4 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span dir="ltr" className="text-[12px] font-normal text-gray-900 tracking-tight">{product?.tyre_size}</span>
+                              <div onClick={() => setSelectedProduct(product)} className="w-4 h-4 bg-gray-900 rounded-full flex items-center justify-center text-[9px] font-bold text-white cursor-pointer hover:bg-yellow-400 hover:text-black transition-all shadow-sm flex-shrink-0">i</div>
+                            </div>
+                          </td>
+                          <td className="px-2 md:px-4 text-[12px] font-normal text-gray-600 text-center">{product?.pattern || "—"}</td>
+                          <td className="px-2 md:px-4 text-[12px] font-normal text-gray-500 text-center font-mono">{product?.year || "—"}</td>
+                          <td className="px-2 md:px-4 text-[12px] font-normal text-gray-600 text-center">{product?.origin ? (t(`data.${product.origin}`) !== `data.${product.origin}` ? t(`data.${product.origin}`) : product.origin) : "—"}</td>
+                          <td className="px-2 md:px-4 text-center">
+                            <div className="w-10 h-10 mx-auto">
+                              {product?.image_url ? (
+                                <div className="relative w-10 h-10 group/img cursor-pointer" onClick={() => { setSelectedImage(product.image_url); setPreviewProduct(product); setIsImageModalOpen(true); }}>
+                                  <img src={product.image_url} alt={product.name} width={40} height={40} className="w-10 h-10 object-contain rounded border border-gray-100 shadow-sm" />
+                                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center rounded">
+                                    <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-black font-bold text-[10px] shadow-lg transform scale-50 group-hover/img:scale-100 transition-transform duration-300">+</div>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : <span className="text-[10px] text-gray-300 font-black uppercase leading-[40px]">No Image</span>}
-                          </div>
-                        </td>
-                        <td className="px-2 md:px-4 text-center">{product.offer ? <span className="text-red-600 font-bold text-[10px] uppercase tracking-tight block max-w-[150px] mx-auto">{product.offer}</span> : <span className="text-gray-200">—</span>}</td>
-                        <td className="px-2 md:px-4 text-center">{getStockBadge(product)}</td>
-                        <td className="px-2 md:px-4 text-center whitespace-nowrap">
-                          <div className="flex flex-col items-center justify-center">
-                            {product.original_price && product.original_price > product.final_price ? (
-                              <>
-                                <span className="text-[10px] font-medium text-gray-400 mb-0.5">
-                                  <Price amount={product.original_price} className="font-medium line-through" />
-                                </span>
+                              ) : <span className="text-[10px] text-gray-300 font-black uppercase leading-[40px]">No Image</span>}
+                            </div>
+                          </td>
+                          <td className="px-2 md:px-4 text-center">{product.offer ? <span className="text-red-600 font-bold text-[10px] uppercase tracking-tight block max-w-[150px] mx-auto">{product.offer}</span> : <span className="text-gray-200">—</span>}</td>
+                          <td className="px-2 md:px-4 text-center">{getStockBadge(product)}</td>
+                          <td className="px-2 md:px-4 text-center whitespace-nowrap">
+                            <div className="flex flex-col items-center justify-center">
+                              {product.original_price && product.original_price > product.final_price ? (
+                                <>
+                                  <span className="text-[10px] font-medium text-gray-400 mb-0.5">
+                                    <Price amount={product.original_price} className="font-medium line-through" />
+                                  </span>
+                                  <span className="text-[12px] font-bold text-black tracking-tight rubik-sans">
+                                    <Price amount={product.final_price} />
+                                  </span>
+                                </>
+                              ) : (
                                 <span className="text-[12px] font-bold text-black tracking-tight rubik-sans">
-                                  <Price amount={product.final_price} />
+                                  <Price amount={product?.final_price || 0} />
                                 </span>
-                              </>
-                            ) : (
-                              <span className="text-[12px] font-bold text-black tracking-tight rubik-sans">
-                                <Price amount={product?.final_price || 0} />
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-1 text-center align-middle">
-                          <div className="inline-grid grid-cols-3 gap-1 items-center">
-                            {/* Col 1: Qty */}
-                            {!isOutOfStock ? (
-                              <div className="w-8 h-8 border-2 border-gray-100 rounded-md flex items-center justify-center text-[11px] font-black text-gray-900 bg-white shadow-sm">1</div>
-                            ) : (
-                              <div className="w-8 h-8" />
-                            )}
-                            {/* Col 2: Cart or Enquiry */}
-                            {!isOutOfStock ? (
-                              <button onClick={() => handleAddToCart(product)} disabled={addingToCart === product.sku} className={`w-8 h-8 rounded-md flex items-center justify-center shadow-md hover:-translate-y-0.5 transition-all cursor-pointer ${justAdded === product.sku ? "bg-green-500 text-white" : "bg-yellow-400 text-black hover:bg-yellow-500"}`}>
-                                {addingToCart === product.sku ? <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div> : justAdded === product.sku ? <Check size={15} strokeWidth={3} /> : <ShoppingCart size={15} strokeWidth={2.5} />}
-                              </button>
-                            ) : (
-                              <button onClick={() => { setInquiryProduct(product); setIsInquiryModalOpen(true); }} className="w-8 h-8 bg-yellow-400 hover:bg-yellow-500 text-black rounded-md flex items-center justify-center shadow-md active:scale-95 cursor-pointer"><Info size={15} strokeWidth={2.5} /></button>
-                            )}
-                            {/* Col 3: Wishlist */}
-                            <button onClick={() => toggleFavorite(product)} className={`w-8 h-8 rounded-md flex items-center justify-center shadow-md active:scale-95 cursor-pointer ${favIds.includes(product.product_id) ? "bg-yellow-400 text-black" : "bg-white text-gray-400 border border-gray-100 hover:border-yellow-200"}`}>
-                              <Star size={15} fill={favIds.includes(product.product_id) ? "currentColor" : "none"} strokeWidth={2.5} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                              )}
+                            </div>
+                          </td>
+                          {showActionColumn && (
+                            <td className="px-1 text-center align-middle">
+                              {product?.is_action === "Yes" && (
+                                <div className="inline-grid grid-cols-3 gap-1 items-center">
+                                  {/* Col 1: Qty */}
+                                  {!isOutOfStock ? (
+                                    <div className="w-8 h-8 border-2 border-gray-100 rounded-md flex items-center justify-center text-[11px] font-black text-gray-900 bg-white shadow-sm">1</div>
+                                  ) : (
+                                    <div className="w-8 h-8" />
+                                  )}
+                                  {/* Col 2: Cart or Enquiry */}
+                                  {!isOutOfStock ? (
+                                    <button onClick={() => handleAddToCart(product)} disabled={addingToCart === product.sku} className={`w-8 h-8 rounded-md flex items-center justify-center shadow-md hover:-translate-y-0.5 transition-all cursor-pointer ${justAdded === product.sku ? "bg-green-500 text-white" : "bg-yellow-400 text-black hover:bg-yellow-500"}`}>
+                                      {addingToCart === product.sku ? <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div> : justAdded === product.sku ? <Check size={15} strokeWidth={3} /> : <ShoppingCart size={15} strokeWidth={2.5} />}
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => { setInquiryProduct(product); setIsInquiryModalOpen(true); }} className="w-8 h-8 bg-yellow-400 hover:bg-yellow-500 text-black rounded-md flex items-center justify-center shadow-md active:scale-95 cursor-pointer"><Info size={15} strokeWidth={2.5} /></button>
+                                  )}
+                                  {/* Col 3: Wishlist */}
+                                  <button onClick={() => toggleFavorite(product)} className={`w-8 h-8 rounded-md flex items-center justify-center shadow-md active:scale-95 cursor-pointer ${favIds.includes(product.product_id) ? "bg-yellow-400 text-black" : "bg-white text-gray-400 border border-gray-100 hover:border-yellow-200"}`}>
+                                    <Star size={15} fill={favIds.includes(product.product_id) ? "currentColor" : "none"} strokeWidth={2.5} />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

@@ -218,15 +218,13 @@ interface NavLink {
   children?: { label: string; href: string }[];
 }
 
-// Any nav item that has a categoryId shows the warehouse dropdown on hover.
-function isWarehouseCategory(item: { label?: string; categoryId?: string | null }): boolean {
-  const label = (item.label || "").toLowerCase();
-  // Show warehouse dropdown for items with categoryId OR specific keywords
-  return !!item.categoryId || label.includes("lubricant") || label.includes("tyre");
+// Returns the menu item's href as-is — the middleware mirrors Magento's SEO URL
+// structure in the browser and rewrites internally to the right Next.js page.
+// Items already include the locale prefix (/en/...) and `.html` for category URLs.
+function resolveNavHref(item: NavLink): string {
+  return item.href || "#";
 }
 
-// Warehouse item shape — populated dynamically from /api/kleverapi/source-permission
-interface WarehouseItem { label: string; code: string; storeUrl: string; }
 
 export default function Navbar() {
   const { data: session, status } = useSession();
@@ -255,8 +253,7 @@ export default function Navbar() {
   const { cart, refetchCart } = useCart();
   const [navLinks, setNavLinks] = useState<NavLink[]>([]);
   const [navLoading, setNavLoading] = useState(true);
-  const [warehouseItems, setWarehouseItems] = useState<WarehouseItem[]>([]);
-  const [storeDropOpen, setStoreDropOpen] = useState(false);
+const [storeDropOpen, setStoreDropOpen] = useState(false);
   const storeDropRef = useRef<HTMLDivElement>(null);
 
   const { data: customerData } = useSelector((state: RootState) => state.customer);
@@ -359,7 +356,7 @@ export default function Navbar() {
   useEffect(() => {
     let cancelled = false;
 
-    const CACHE_KEY = `navmenu_${locale}`;
+    const CACHE_KEY = `navmenu_v4_${locale}`;
     const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 h
 
     const toLinks = (raw: any[]): NavLink[] =>
@@ -444,70 +441,6 @@ export default function Navbar() {
     return () => { cancelled = true; };
   }, [locale]);
 
-  // Fetch warehouse list for the "All Lubricants"/"All Tyres" dropdown.
-  // Matches the live Magento site — enabled/disabled by admin via source-permission.
-  useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    let cancelled = false;
-    (async () => {
-      try {
-        // Use `locale` state directly — see menu-fetch comment above.
-        const res = await fetch("/api/kleverapi/source-permission", {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-            "x-locale": locale,
-          },
-        });
-        if (!res.ok) {
-          if (res.status === 401) {
-            setWarehouseItems([]);
-            return;
-          }
-          throw new Error("source-permission fetch failed");
-        }
-        const data = await res.json();
-        if (cancelled) return;
-        if (process.env.NODE_ENV !== "production") {
-          console.log("[Navbar] source-permission raw response:", data);
-        }
-        const raw: any[] = Array.isArray(data?.permitted_stores)
-          ? data.permitted_stores
-          : (Array.isArray(data) ? data : []);
-
-        // Show stores matching the current locale for the nav hover dropdown.
-        const filtered = raw.filter((s) =>
-          s?.is_active !== false &&
-          (String(s.store_code).endsWith(`_${locale}`) || String(s.store_code) === locale)
-        );
-
-        // Map stores to WarehouseItem shape.
-        const mapped: WarehouseItem[] = filtered.map((s) => {
-          const storeCode = String(s.store_code ?? "");
-          const label = String(s.group_name || s.store_name || s.website_name || "");
-
-          return {
-            label: label,
-            code: storeCode,
-            storeUrl: String(s.store_url ?? ""),
-          };
-        }).filter((w) => !!w.label);
-
-        setWarehouseItems(mapped);
-        // Persist the first permitted warehouse so the products page can use it
-        // as a fallback when no store is selected (direct nav to "All Tyres").
-        if (mapped.length > 0 && typeof sessionStorage !== "undefined") {
-          sessionStorage.setItem("defaultStoreCode", mapped[0].code);
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[Navbar] source-permission/stores fetch failed:", err);
-        }
-        if (!cancelled) setWarehouseItems([]);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isAuthenticated, locale]);
 
   // Resolve the display label for a menu item in the following precedence:
   //   1. code → CODE_TO_TRANSLATION_KEY (most stable across locales)
@@ -581,7 +514,7 @@ export default function Navbar() {
                 {isProfileOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-sm shadow-2xl border border-gray-200 py-1 z-[100]" dir={isRtl ? "rtl" : "ltr"}>
                     <Link
-                      href={lp("/my-account")}
+                      href={lp("/customer/account")}
                       className="block px-4 py-2.5 text-[12px] font-bold text-gray-800 hover:bg-gray-50 transition-colors ltr:text-left rtl:text-right"
                       onClick={() => setIsProfileOpen(false)}
                     >
@@ -589,7 +522,7 @@ export default function Navbar() {
                     </Link>
                     {isSubAccount && (
                       <Link
-                        href={lp("/my-account")}
+                        href={lp("/customer/account")}
                         className="block px-4 py-2.5 text-[12px] font-bold text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 ltr:text-left rtl:text-right"
                         onClick={() => {
                           setIsProfileOpen(false);
@@ -687,7 +620,7 @@ export default function Navbar() {
               </div>
             ) : (
               navLinks.map((item) => {
-                const href = lp(item.href);
+                const href = resolveNavHref(item);
                 const isActive = pathname === href || pathname?.startsWith(href + "/");
                 return (
                   <Link
@@ -730,7 +663,7 @@ export default function Navbar() {
             <div className="px-4 py-2">
               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] block mb-2">{t("nav.navigation")}</span>
               {navLinks.map((item) => {
-                const href = lp(item.href);
+                const href = resolveNavHref(item);
                 const isActive = pathname === href || pathname?.startsWith(href + "/");
                 return (
                   <Link
@@ -766,7 +699,7 @@ export default function Navbar() {
                   >
                     <Bell size={16} /> {t("nav.notifications")} ({unreadCount})
                   </button>
-                  <Link href={lp("/my-account")} className="py-2.5 text-[12px] font-bold text-gray-700 flex items-center gap-3" onClick={() => setIsMenuOpen(false)}>
+                  <Link href={lp("/customer/account")} className="py-2.5 text-[12px] font-bold text-gray-700 flex items-center gap-3" onClick={() => setIsMenuOpen(false)}>
 
                     <UserCircle size={16} /> {t("nav.myAccount")}
                   </Link>

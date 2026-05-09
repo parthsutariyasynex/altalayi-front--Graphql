@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
 
         // Step 2: Handle search parameters
         const { searchParams } = new URL(request.url);
-        const categoryId = searchParams.get("categoryId") || "5";
+        const categoryId = searchParams.get("categoryId");
+        if (!categoryId) {
+            return new Response(JSON.stringify({ error: "categoryId is required" }), { status: 400 });
+        }
         const page = searchParams.get("page") || "1";
         const pageSize = searchParams.get("pageSize") || "20";
 

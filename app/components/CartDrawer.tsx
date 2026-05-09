@@ -158,7 +158,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     {/* Bottom Section */}
                     <div className="p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.04)] z-10">
                         <Link
-                            href={lp("/cart")}
+                            href={lp("/checkout/cart")}
                             onClick={onClose}
                             className="w-full h-[55px] bg-[#f5b21a] hover:bg-black text-black hover:text-white font-black rounded-sm transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl uppercase tracking-[0.2em] text-[12px]"
                         >

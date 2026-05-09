@@ -25,7 +25,7 @@ const AddToCartPopup: React.FC<AddToCartPopupProps> = ({ isOpen, onClose, produc
 
     const handleProceedToCart = () => {
         onClose();
-        router.push(lp("/cart"));
+        router.push(lp("/checkout/cart"));
     };
 
     if (!product) return null;

@@ -18,6 +18,34 @@ const COUNTRY_CODES = [
   { code: "+971", country: "United Arab Emirates", arCountry: "الإمارات العربية المتحدة", iso: "ae", flagClass: "iti__flag iti__ae" },
 ];
 
+// Resolve the first Magento category URL from the menu API so login redirects
+// land on a SEO URL like /en/all-tyres/car-tyres.html instead of /en/products.
+// No hardcoded paths — falls back to /{locale} root if nothing resolves.
+async function resolveDefaultLandingUrl(locale: string): Promise<string> {
+  try {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const res = await fetch("/api/kleverapi/menu", {
+      headers: {
+        "Content-Type": "application/json",
+        "x-locale": locale,
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
+    });
+    if (res.ok) {
+      const items = await res.json();
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          const href = item?.href || "";
+          if (typeof href === "string" && href.endsWith(".html")) {
+            return href;
+          }
+        }
+      }
+    }
+  } catch { /* fall through */ }
+  return `/${locale}`;
+}
+
 export default function LoginPage() {
   return (
     <Suspense fallback={
@@ -49,8 +77,15 @@ function LoginPageContent() {
         signOut({ redirect: false });
         return;
       }
-      const callbackUrl = searchParams.get("callbackUrl") || lp("/products");
-      window.location.href = callbackUrl;
+      (async () => {
+        const callback = searchParams.get("callbackUrl");
+        if (callback) {
+          window.location.href = callback;
+          return;
+        }
+        const locale = window.location.pathname.startsWith("/ar") ? "ar" : "en";
+        window.location.href = await resolveDefaultLandingUrl(locale);
+      })();
     }
   }, [status, session, lp, searchParams]);
 
@@ -142,7 +177,7 @@ function LoginPageContent() {
           }
           toast.success(t("login.loginSuccess"));
           const locale = window.location.pathname.startsWith('/ar') ? 'ar' : 'en';
-          const callbackUrl = searchParams.get("callbackUrl") || `/${locale}/products`;
+          const callbackUrl = searchParams.get("callbackUrl") || await resolveDefaultLandingUrl(locale);
           window.location.href = callbackUrl;
         } else {
           localStorage.removeItem("token");
@@ -183,7 +218,7 @@ function LoginPageContent() {
           }
           toast.success(t("login.loginSuccess"));
           const locale = window.location.pathname.startsWith('/ar') ? 'ar' : 'en';
-          const callbackUrl = searchParams.get("callbackUrl") || `/${locale}/products`;
+          const callbackUrl = searchParams.get("callbackUrl") || await resolveDefaultLandingUrl(locale);
           window.location.href = callbackUrl;
         } else {
           localStorage.removeItem("token");

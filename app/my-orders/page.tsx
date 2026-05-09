@@ -232,7 +232,7 @@ function MyOrdersPageContent() {
         toast.dismiss();
         setLocalSearch("All");
         setLocalStatus("All");
-        router.push(lp("/my-orders"));
+        router.push(lp("/sales/order/history"));
     };
 
     const handlePageChange = (page: number) => {
@@ -244,7 +244,7 @@ function MyOrdersPageContent() {
     };
 
     const handleViewOrder = (entityId: string) => {
-        router.push(lp(`/my-orders/${entityId}`));
+        router.push(lp(`/sales/order/view/order_id/${entityId}`));
     };
 
     const handleReorder = async (order: Order) => {
@@ -266,7 +266,7 @@ function MyOrdersPageContent() {
 
             await refetchCart();
             toast.success(t("orders.addedToCart"), { id: toastId });
-            router.push(lp("/cart"));
+            router.push(lp("/checkout/cart"));
         } catch (err: any) {
             toast.error(err.message || t("orders.exportFailed"), { id: toastId });
         }

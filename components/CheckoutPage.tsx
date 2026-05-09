@@ -228,7 +228,7 @@ const CheckoutPageUI: React.FC = () => {
     useEffect(() => {
         if (!isCartLoading && cart && cart.items.length === 0) {
             toast.error(t("checkout.yourOrderIsEmpty"));
-            router.push(lp("/cart"));
+            router.push(lp("/checkout/cart"));
         }
     }, [cart, isCartLoading, router]);
 
@@ -376,7 +376,7 @@ const CheckoutPageUI: React.FC = () => {
         // 0. Cart Validation
         if (!cart || cart.items.length === 0) {
             toast.error(t("checkout.yourOrderIsEmpty"));
-            router.push(lp("/cart"));
+            router.push(lp("/checkout/cart"));
             return;
         }
 
@@ -684,7 +684,7 @@ const CheckoutPageUI: React.FC = () => {
             <main className="flex-1 w-full px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-10 pt-2 md:pt-4">
                 {/* Header Section */}
                 <div className="flex flex-col items-center justify-center text-center gap-4 mb-12 relative">
-                    <Link href={lp("/cart")} className="lg:absolute left-0 top-1/2 lg:-translate-y-1/2 flex items-center gap-2 text-black hover:text-yellow-500 transition-all text-[10px] font-black uppercase tracking-[0.2em] group mb-4 lg:mb-0">
+                    <Link href={lp("/checkout/cart")} className="lg:absolute left-0 top-1/2 lg:-translate-y-1/2 flex items-center gap-2 text-black hover:text-yellow-500 transition-all text-[10px] font-black uppercase tracking-[0.2em] group mb-4 lg:mb-0">
                         <div className="w-8 h-8 rounded-full border border-black flex items-center justify-center group-hover:border-yellow-500 transition-all">
                             <ArrowLeft size={14} strokeWidth={3} className="group-hover:-translate-x-1 transition-transform" />
                         </div>
@@ -724,7 +724,7 @@ const CheckoutPageUI: React.FC = () => {
                                                 key={addr.id}
                                                 address={addr}
                                                 onEdit={() => {
-                                                    router.push(lp(`/customer/address-book/edit/${addr.id}?redirect=/checkout`));
+                                                    router.push(lp(`/customer/address/edit/id/${addr.id}?redirect=/checkout`));
                                                 }}
                                             />
                                         ) : (
@@ -767,7 +767,7 @@ const CheckoutPageUI: React.FC = () => {
                                                             className="text-[9px] font-black uppercase tracking-[0.15em] px-6 py-2 bg-white text-gray-500 border border-[#ebebeb] hover:bg-gray-50 hover:text-black hover:border-gray-300 transition-all duration-300 rounded-lg active:scale-95"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                router.push(lp(`/customer/address-book/edit/${addr.id}?redirect=/checkout`));
+                                                                router.push(lp(`/customer/address/edit/id/${addr.id}?redirect=/checkout`));
                                                             }}
                                                         >
                                                             {t("m.edit")}

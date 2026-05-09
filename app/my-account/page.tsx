@@ -347,7 +347,7 @@ export default function MyAccountPage() {
                                                         {t("addressBook.editAddress")}
                                                     </Link>
                                                 ) : (
-                                                    <Link href={lp("/customer/address-book")} className="w-full md:w-auto text-center bg-[#F5B21B] hover:bg-[#e0a116] text-black text-[13px] font-bold px-4 md:px-8 py-2.5 uppercase transition-all rounded-none inline-block">
+                                                    <Link href={lp("/customer/address")} className="w-full md:w-auto text-center bg-[#F5B21B] hover:bg-[#e0a116] text-black text-[13px] font-bold px-4 md:px-8 py-2.5 uppercase transition-all rounded-none inline-block">
                                                         {t("addressBook.addAddress")}
                                                     </Link>
                                                 )}

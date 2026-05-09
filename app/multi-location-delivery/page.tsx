@@ -361,7 +361,7 @@ const MultiLocationDeliveryPage: React.FC = () => {
                 {/* Footer Section */}
                 <div className="mt-6 md:mt-8 bg-[#f2f2f2] p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-6 border border-gray-100">
                     <Link
-                        href={lp("/cart")}
+                        href={lp("/checkout/cart")}
                         className="w-full sm:w-auto text-center bg-black text-white px-6 md:px-10 py-3.5 md:py-4 text-[11px] font-black uppercase tracking-[0.1em] hover:bg-zinc-900 transition-colors"
                     >
                         {t("multi.backToCart")}
