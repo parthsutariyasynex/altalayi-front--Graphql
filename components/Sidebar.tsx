@@ -239,7 +239,7 @@ const Sidebar = () => {
     let bestMatchLength = -1;
 
     visibleItems.forEach((item) => {
-        let href = item.url || "#";
+        const href = item.url || "#";
         let pathOnly = href;
         try {
             if (href.startsWith("http")) {
