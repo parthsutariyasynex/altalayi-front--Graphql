@@ -141,14 +141,12 @@ const FilterGroup = memo(({
 FilterGroup.displayName = "FilterGroup";
 
 function SidebarFilter({
-    categoryId = "5",
     selectedFilters = {},
     onFilterChange,
     isCollapsed: externalIsCollapsed,
     setIsCollapsed: setExternalIsCollapsed,
     initialFilters = null
 }: {
-    categoryId?: string;
     selectedFilters?: Record<string, string[]>;
     onFilterChange?: (filters: Record<string, string[]>, filterLabels: Record<string, { value: string; label: string }[]>) => void;
     isCollapsed?: boolean;
@@ -166,9 +164,14 @@ function SidebarFilter({
     const isCollapsed = externalIsCollapsed !== undefined ? externalIsCollapsed : internalIsCollapsed;
     const setIsCollapsed = setExternalIsCollapsed !== undefined ? setExternalIsCollapsed : setInternalIsCollapsed;
 
-    // ✅ Sync filterGroups from initialFilters prop immediately
+    // Sync filterGroups from initialFilters prop
     useEffect(() => {
-        if (!initialFilters || !Array.isArray(initialFilters)) return;
+        if (!initialFilters || !Array.isArray(initialFilters)) {
+            // If we have no filters yet but products are already loaded (or failed),
+            // stop the loading state.
+            if (initialFilters !== null) setLoading(false);
+            return;
+        }
 
         const mapped = initialFilters.map((g: any) => ({
             code: g.code || g.attribute_code || "",
@@ -195,64 +198,7 @@ function SidebarFilter({
         });
 
         setLoading(false);
-    }, [initialFilters]);
-
-    // ✅ Fetch filters only if initialFilters not provided
-    useEffect(() => {
-        if (initialFilters) return;
-
-        let cancelled = false;
-        const fetchFilters = async () => {
-            try {
-                setLoading(true);
-                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-                const fetchLocale = typeof window !== 'undefined' && window.location.pathname.startsWith("/ar") ? "ar" : "en";
-                const headers: any = { 'Content-Type': 'application/json', 'x-locale': fetchLocale };
-                if (token) headers['Authorization'] = `Bearer ${token}`;
-
-                const res = await fetch(`/api/filters?categoryId=${categoryId}&lang=${fetchLocale}`, { headers });
-                if (cancelled) return;
-                if (res.status === 401) {
-                    localStorage.removeItem("token");
-                    window.location.href = lp("/login");
-                    return;
-                }
-                if (!res.ok) throw new Error("Failed to load filters");
-                const data = await res.json();
-                if (cancelled) return;
-
-                const raw = Array.isArray(data) ? data : (data.filters || data.items || []);
-                const mapped: FilterGroupData[] = raw.map((g: any) => ({
-                    code: g.code || g.attribute_code || "",
-                    label: g.label || g.name || "",
-                    options: (g.options || []).map((o: any) => ({
-                        value: String(o.value ?? ""),
-                        label: String(o.label ?? o.value ?? ""),
-                        count: Number(o.count ?? 0),
-                    })),
-                }));
-
-                setFilterGroups(mapped);
-
-                // Start all groups closed unless they have an active selection
-                const initialExpanded: Record<string, boolean> = {};
-                mapped.forEach(g => {
-                    const hasSelection = selectedFilters[g.code] && selectedFilters[g.code].length > 0;
-                    if (hasSelection) {
-                        initialExpanded[g.code] = true;
-                    }
-                });
-                setExpandedGroups(initialExpanded);
-            } catch (err: any) {
-                if (!cancelled) setError(err.message);
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
-
-        fetchFilters();
-        return () => { cancelled = true; };
-    }, [categoryId, initialFilters]);
+    }, [initialFilters, selectedFilters]);
 
     const handleCheckboxChange = useCallback((code: string, value: string, checked: boolean) => {
         const currentValues = selectedFilters[code] || [];

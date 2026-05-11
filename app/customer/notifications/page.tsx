@@ -6,7 +6,6 @@ import { useSession, signOut } from "next-auth/react";
 import { useNotifications } from "@/modules/notifications/hooks/useNotifications";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { accountSidebarMenu } from "@/components/account-sidebar-menu";
 import { redirectToLogin } from "@/utils/helpers";
 import PortalDropdown from "@/components/PortalDropdown";
 import { useTranslation } from "@/hooks/useTranslation";

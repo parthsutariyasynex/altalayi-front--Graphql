@@ -5,6 +5,7 @@ import React, { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import FavouriteProducts from "@/app/components/FavouriteProducts";
+import Sidebar from "@/components/Sidebar";
 import { redirectToLogin } from "@/utils/helpers";
 
 /**
@@ -32,10 +33,9 @@ export default function FavoritesPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white font-rubik scroll-smooth text-black">
+        <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white font-rubik scroll-smooth text-black">
+            <Sidebar />
 
-
-            {/* Main Content Area - Full Width optimized */}
             <div className="w-full mt-4 md:mt-8 px-4 md:px-10 pb-10 bg-white">
                 <FavouriteProducts
                     title={

@@ -3,7 +3,8 @@ import { useLocalePath } from "@/hooks/useLocalePath";
 import { useTranslation } from "@/hooks/useTranslation";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Sidebar from "./components/Sidebar";
+import Sidebar from "@/components/Sidebar";
+
 import Filters from "./components/Filters";
 import OrdersTable, { Order } from "./components/OrdersTable";
 import Pagination from "@/components/Pagination";

@@ -16,7 +16,7 @@ function isValidLocale(value: string): value is Locale {
 const APP_ROUTES = new Set([
     "login", "register", "forgot-password", "change-password",
     "products", "cart", "checkout", "favorites", "quick-order",
-    "my-account", "my-orders", "address-book", "customer", "subaccount",
+    "my-account", "my-orders", "customer", "subaccount",
     "multi-location-delivery", "popup-demo",
     // Magento-native system URLs that have re-export pages in app/
     "sales", "wishlist",
@@ -118,6 +118,29 @@ const CMS_SLUG_TO_ROUTE: Record<string, string> = {
     "terms-conditions": "/terms-conditions",
     "terms": "/terms-conditions",
     "terms-of-service": "/terms-conditions",
+    // Account pages (Magento SEO slugs -> Next.js paths)
+    "mystatement": "/customer/statement",
+    "my-statement": "/customer/statement",
+    "customer-account": "/my-account",
+    "manage-accounts": "/customer/subaccounts/manage",
+    "order-attachments": "/customer/order-attachments",
+    "my-order-attachments": "/customer/order-attachments",
+    "notifications": "/customer/notifications",
+    "my-notifications": "/customer/notifications",
+    "address-book": "/customer/address-book",
+    "favourite-products": "/favorites",
+    "favorite-products": "/favorites",
+    "wishlist": "/favorites",
+    "my-forecast": "/customer/forecast",
+    "business-overview": "/customer/dashboard",
+    "dashboard": "/customer/dashboard",
+    "statement": "/customer/statement",
+    "orders": "/my-orders",
+    "account": "/my-account",
+    "usernotifications": "/customer/notifications",
+    "orderupload": "/customer/order-attachments",
+    "viewforcast": "/customer/forecast",
+    "subaccounts": "/customer/subaccounts/manage",
 };
 
 async function resolveMagentoUrl(slugPath: string): Promise<ResolvedUrl> {
@@ -127,11 +150,15 @@ async function resolveMagentoUrl(slugPath: string): Promise<ResolvedUrl> {
     // 1. Quick CMS slug lookup — no network needed.
     const bare = slugPath.replace(/\.html$/, "");
     const segs = bare.split("/").filter(Boolean);
-    const lastSeg = segs[segs.length - 1] || "";
-    if (CMS_SLUG_TO_ROUTE[lastSeg]) {
-        const result: ResolvedUrl = { kind: "cms", nextjsPath: CMS_SLUG_TO_ROUTE[lastSeg] };
-        urlResolutionCache.set(slugPath, result);
-        return result;
+
+    // Check segments from most specific (right) to least specific (left)
+    for (let i = segs.length - 1; i >= 0; i--) {
+        const seg = segs[i];
+        if (CMS_SLUG_TO_ROUTE[seg]) {
+            const result: ResolvedUrl = { kind: "cms", nextjsPath: CMS_SLUG_TO_ROUTE[seg] };
+            urlResolutionCache.set(slugPath, result);
+            return result;
+        }
     }
 
     // 2. GraphQL urlResolver — handles category URLs dynamically (no hardcoding).

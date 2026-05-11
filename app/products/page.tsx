@@ -221,13 +221,14 @@ export default function ProductsPage() {
   }, [selectedFilters, isInitialized]);
 
   // Reset filters immediately when the user navigates to a different category
-  useEffect(() => {
+    useEffect(() => {
     if (prevCategoryIdRef.current !== null && categoryId !== prevCategoryIdRef.current) {
       setSelectedFilters({});
       setSelectedFilterLabels({});
       setDebouncedFilters({});
       setCurrentPage(1);
       setSortBy("none");
+      setApiFilters(null); // Reset filters for new category
     }
     prevCategoryIdRef.current = categoryId;
   }, [categoryId]);
@@ -276,10 +277,11 @@ export default function ProductsPage() {
         if (abortController.signal.aborted) return;
         setProducts(mappedProducts);
         setTotalCount(total);
-        if (data.filters) setApiFilters(data.filters);
+        setApiFilters(data.filters || []); // Always set (even if empty) to stop loading state
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
         setError(t("products.noProducts"));
+        setApiFilters([]); // Stop filter loading on error
         console.error(err);
       } finally {
         if (!abortController.signal.aborted) setLoading(false);
