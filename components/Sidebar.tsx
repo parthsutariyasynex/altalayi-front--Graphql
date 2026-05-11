@@ -92,9 +92,19 @@ const Sidebar = () => {
             <nav className="p-0 lg:p-4">
                 <ul className="flex flex-row lg:flex-col space-y-0 lg:space-y-1">
                     {visibleItems.map((item) => {
+                        // Handle absolute URLs from Magento: convert to relative paths
+                        let href = item.url || "#";
+                        try {
+                            if (href.startsWith("http")) {
+                                const urlObj = new URL(href);
+                                href = urlObj.pathname + urlObj.search;
+                            }
+                        } catch (e) {
+                            console.error("[Sidebar] URL parsing error:", e);
+                        }
+
                         // Logout logic is triggered by identifying the code (no hardcoded links)
                         const isSignOut = item.code === "sign_out" || item.code === "logout" || item.code === "customer_logout";
-                        const href = item.url || "#";
                         
                         // Dynamic active state detection
                         const isActive = !isSignOut && (pathname === href || (href !== "/" && pathname.startsWith(href)));

@@ -14,6 +14,7 @@ import BusinessOverviewEditModal from "@/components/BusinessOverviewEditModal";
 import { redirectToLogin } from "@/utils/helpers";
 import PortalDropdown from "@/components/PortalDropdown";
 import { Hourglass } from "lucide-react";
+import CreditLimit from "@/app/components/CreditLimit";
 
 
 type CustomAttribute = {
@@ -166,17 +167,6 @@ export default function MyAccountPage() {
                 : defaultShipping?.city
                     ? `${defaultShipping.city} ,${defaultShipping.country_id || "SA"}`
                     : "N/A";
-    
-    const totalCreditLimit = getAttr("total_credit_limit");
-    const usedCreditLimit = getAttr("used_credit_limit");
-    const availableCreditLimitAttr = getAttr("available_credit_limit");
-
-    const availableCreditLimit = availableCreditLimitAttr !== "N/A"
-        ? availableCreditLimitAttr
-        : String(
-            (parseFloat(totalCreditLimit !== "N/A" ? totalCreditLimit : "0") || 0) -
-            (parseFloat(usedCreditLimit !== "N/A" ? usedCreditLimit : "0") || 0)
-        );
 
 
     return (
@@ -310,54 +300,7 @@ export default function MyAccountPage() {
                             </div>
 
                             {/* CREDIT ACCOUNT INFORMATION */}
-                            <div>
-                                <h2 className="text-[14px] md:text-[16px] font-bold text-black uppercase mb-3">{t("m.credit-limit-information")}</h2>
-                                <hr className="border-gray-200 mb-6" />
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
-                                    {/* Total Credit Limit */}
-                                    <div className="flex shadow-sm">
-                                        <div className="w-16 md:w-20 bg-[#2980b9] flex items-center justify-center p-3">
-                                            <Hourglass className="text-white w-6 h-6 md:w-8 md:h-8" />
-                                        </div>
-                                        <div className="flex-1 bg-[#3498db] p-3 md:p-4 flex flex-col justify-center items-end text-white">
-                                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-tight opacity-90">{t("m.total-credit-limit")}</span>
-                                            <div className="flex items-center gap-1 mt-1 md:mt-1.5">
-                                                <span className="currency-riyal text-xs md:text-sm">﷼</span>
-                                                <span className="text-base md:text-xl font-black leading-none">{formatCurrency(totalCreditLimit)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Used Credit Limit */}
-                                    <div className="flex shadow-sm">
-                                        <div className="w-16 md:w-20 bg-[#c0392b] flex items-center justify-center p-3">
-                                            <Hourglass className="text-white w-6 h-6 md:w-8 md:h-8" />
-                                        </div>
-                                        <div className="flex-1 bg-[#e74c3c] p-3 md:p-4 flex flex-col justify-center items-end text-white">
-                                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-tight opacity-90">{t("m.used-credit-limit")}</span>
-                                            <div className="flex items-center gap-1 mt-1 md:mt-1.5">
-                                                <span className="currency-riyal text-xs md:text-sm">﷼</span>
-                                                <span className="text-base md:text-xl font-black leading-none">{formatCurrency(usedCreditLimit)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Available Credit Limit */}
-                                    <div className="flex shadow-sm">
-                                        <div className="w-16 md:w-20 bg-[#16a085] flex items-center justify-center p-3">
-                                            <Hourglass className="text-white w-6 h-6 md:w-8 md:h-8" />
-                                        </div>
-                                        <div className="flex-1 bg-[#1abc9c] p-3 md:p-4 flex flex-col justify-center items-end text-white">
-                                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-tight opacity-90">{t("m.available-credit-limit")}</span>
-                                            <div className="flex items-center gap-1 mt-1 md:mt-1.5">
-                                                <span className="currency-riyal text-xs md:text-sm">﷼</span>
-                                                <span className="text-base md:text-xl font-black leading-none">{formatCurrency(availableCreditLimit)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <CreditLimit />
 
                             {/* ADDRESS BOOK */}
 

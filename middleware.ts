@@ -134,13 +134,17 @@ const CMS_SLUG_TO_ROUTE: Record<string, string> = {
     "my-forecast": "/customer/forecast",
     "business-overview": "/customer/dashboard",
     "dashboard": "/customer/dashboard",
+    "customertarget": "/customer/dashboard",
     "statement": "/customer/statement",
     "orders": "/my-orders",
+    "sales": "/my-orders",
+    "history": "/my-orders",
     "account": "/my-account",
     "usernotifications": "/customer/notifications",
     "orderupload": "/customer/order-attachments",
     "viewforcast": "/customer/forecast",
     "subaccounts": "/customer/subaccounts/manage",
+    "manage": "/customer/subaccounts/manage",
 };
 
 async function resolveMagentoUrl(slugPath: string): Promise<ResolvedUrl> {
