@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocalePath } from "@/hooks/useLocalePath";
+import { CartPageSkeleton } from "@/components/skeletons";
 
 const CartPage: React.FC = () => {
     const router = useRouter();
@@ -103,11 +104,7 @@ const CartPage: React.FC = () => {
     };
 
     if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="w-12 h-12 border-4 border-gray-200 border-t-yellow-400 rounded-full animate-spin" />
-            </div>
-        );
+        return <CartPageSkeleton />;
     }
 
     if (error) {

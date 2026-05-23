@@ -138,11 +138,14 @@ export default function NotificationsPage() {
                                     </thead>
                                     <tbody className="bg-white">
                                         {isLoading ? (
-                                            <tr>
-                                                <td colSpan={4} className="py-24 text-center">
-                                                    <div className="inline-block w-8 h-8 border-3 border-[#f5b21a] border-t-transparent rounded-full animate-spin"></div>
-                                                </td>
-                                            </tr>
+                                            Array.from({ length: 5 }).map((_, i) => (
+                                                <tr key={`skel-${i}`} className="border-b border-gray-100">
+                                                    <td className="px-4 py-4"><div className="h-3 w-32 bg-gray-200 rounded animate-pulse" /></td>
+                                                    <td className="px-4 py-4"><div className="h-3 w-48 bg-gray-200 rounded animate-pulse" /></td>
+                                                    <td className="px-4 py-4"><div className="h-3 w-24 bg-gray-200 rounded animate-pulse" /></td>
+                                                    <td className="px-4 py-4"><div className="h-3 w-16 bg-gray-200 rounded animate-pulse" /></td>
+                                                </tr>
+                                            ))
                                         ) : notifications && notifications.length > 0 ? (
                                             notifications.map((item, index) => (
                                                 <tr
@@ -192,8 +195,16 @@ export default function NotificationsPage() {
                             {/* Mobile Card List */}
                             <div className="md:hidden">
                                 {isLoading ? (
-                                    <div className="py-16 text-center">
-                                        <div className="inline-block w-8 h-8 border-3 border-[#f5b21a] border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="space-y-2 py-2">
+                                        {Array.from({ length: 4 }).map((_, i) => (
+                                            <div key={i} className="bg-white border border-gray-100 p-3 flex items-start gap-3">
+                                                <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="h-3.5 w-3/4 bg-gray-200 rounded animate-pulse" />
+                                                    <div className="h-3 w-1/2 bg-gray-200 rounded animate-pulse" />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : notifications && notifications.length > 0 ? (
                                     notifications.map((item, index) => (

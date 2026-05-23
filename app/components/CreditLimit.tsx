@@ -5,6 +5,7 @@ import { Hourglass, Loader2, Info } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { api } from "@/lib/api/api-client";
 import Price from "./Price";
+import { CreditLimitSkeleton } from "@/components/skeletons";
 
 interface CreditLimitResponse {
     user_type: string;
@@ -54,12 +55,7 @@ const CreditLimit = () => {
     }, []);
 
     if (loading) {
-        return (
-            <div className="w-full h-32 flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                <Loader2 className="w-6 h-6 animate-spin text-[#f5a623] mb-2" />
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{t("common.loading") || "Loading..."}</span>
-            </div>
-        );
+        return <CreditLimitSkeleton />;
     }
 
     if (error) {

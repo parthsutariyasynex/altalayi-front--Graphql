@@ -85,9 +85,16 @@ export default function NotificationDrawer({ isOpen, onClose }: NotificationDraw
                 {/* Notifications List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {isLoading && notifications.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
-                            <div className="w-10 h-10 border-3 border-[#f5b21a] border-t-transparent rounded-full animate-spin"></div>
-                            <p className="mt-4 text-[11px] text-gray-400 font-black uppercase tracking-[0.2em]">{t("common.loading")}</p>
+                        <div className="p-4 space-y-2">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 border border-gray-100 rounded-sm">
+                                    <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
+                                    <div className="flex-1 space-y-1.5">
+                                        <div className="h-3.5 w-3/4 bg-gray-200 rounded animate-pulse" />
+                                        <div className="h-3 w-1/2 bg-gray-200 rounded animate-pulse" />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : notifications.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-32 px-10 text-center animate-in zoom-in-95 duration-500">

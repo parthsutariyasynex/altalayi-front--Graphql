@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShoppingCart, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { MultiLocationDeliverySkeleton } from "@/components/skeletons";
 
 /**
  * State structure for quantity assignments:
@@ -183,11 +184,7 @@ const MultiLocationDeliveryPage: React.FC = () => {
     const isReadyToProceed = validation.isValid && !isAssigning;
 
     if (isCartLoading || isCheckoutLoading && !isAssigning) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="w-10 h-10 border-4 border-gray-100 border-t-[#f5b21a] rounded-full animate-spin" />
-            </div>
-        );
+        return <MultiLocationDeliverySkeleton />;
     }
 
     // EMPTY CART STATE - Matching User Screenshot exactly

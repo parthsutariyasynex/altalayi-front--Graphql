@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import Price from "@/app/components/Price";
+import { MultiLocationShippingSkeleton } from "@/components/skeletons";
 
 type Assignments = Record<number, Record<string, number>>;
 
@@ -144,11 +145,7 @@ const MultiShippingShippingPage: React.FC = () => {
     };
 
     if (isLoading || isCartLoading || isCheckoutLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="w-10 h-10 border-4 border-gray-100 border-t-[#f5b21a] rounded-full animate-spin" />
-            </div>
-        );
+        return <MultiLocationShippingSkeleton groups={2} />;
     }
 
     if (groups.length === 0) {

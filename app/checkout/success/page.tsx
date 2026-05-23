@@ -8,10 +8,11 @@ import Link from "next/link";
 import { CheckCircle, Package, ArrowRight, Home, ShoppingBag, Loader2 } from "lucide-react";
 import { useCheckout } from "@/modules/checkout/hooks/useCheckout";
 import { toast } from "react-hot-toast";
+import { CheckoutSuccessSkeleton } from "@/components/skeletons";
 
 const CheckoutSuccessPage = () => {
     return (
-        <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#f5a623]"></div></div>}>
+        <Suspense fallback={<CheckoutSuccessSkeleton />}>
             <CheckoutSuccessContent />
         </Suspense>
     );
@@ -67,14 +68,7 @@ const CheckoutSuccessContent = () => {
     }, [orderId, fetchCheckoutSuccess, router, hasFetched, orderData]);
 
     if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f9f9f9]">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-gray-200 border-t-[#F5B21B] rounded-full animate-spin" />
-                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest italic">{t("checkoutSuccess.verifyingOrder")}</p>
-                </div>
-            </div>
-        );
+        return <CheckoutSuccessSkeleton />;
     }
 
     return (

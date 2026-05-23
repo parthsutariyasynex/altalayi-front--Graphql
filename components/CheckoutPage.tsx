@@ -1,6 +1,7 @@
 "use client";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocalePath } from "@/hooks/useLocalePath";
+import { CheckoutSkeleton } from "@/components/skeletons";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -638,14 +639,7 @@ const CheckoutPageUI: React.FC = () => {
         }
     };
     if (isCartLoading || status === "loading") {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f9f9f9]">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-gray-200 border-t-[#F5B21B] rounded-full animate-spin" />
-                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest italic">Preparing Checkout...</p>
-                </div>
-            </div>
-        );
+        return <CheckoutSkeleton />;
     }
 
     if (isCartLoading) {
@@ -1337,7 +1331,7 @@ const CheckoutPageUI: React.FC = () => {
                                         ) : (
                                             <>
                                                 {t("common.placeOrder")}
-                                                <span className="text-lg opacity-50 select-none">→</span>
+                                                <span className="text-lg leading-none opacity-50 select-none flex items-center">→</span>
                                             </>
                                         )}
                                     </button>

@@ -10,6 +10,7 @@ import { RootState } from "@/store/store";
 import toast from "react-hot-toast";
 import Pagination from "@/components/Pagination";
 import PortalDropdown from "@/components/PortalDropdown";
+import { AddressBookSkeleton } from "@/components/skeletons";
 
 type Address = {
   id: number | string;
@@ -158,14 +159,7 @@ export default function Addresses() {
   const defaultShipping = addresses.find((address: any) => address.default_shipping);
 
   if (loading && addresses.length === 0) {
-    return (
-      <div className="p-6 flex justify-center items-center min-h-[400px] font-rubik">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-100 border-t-[#f5a623]"></div>
-          <p className="text-gray-400 text-xs font-black uppercase tracking-widest">{t("addressBook.loadingAddresses")}</p>
-        </div>
-      </div>
-    );
+    return <AddressBookSkeleton />;
   }
 
   return (

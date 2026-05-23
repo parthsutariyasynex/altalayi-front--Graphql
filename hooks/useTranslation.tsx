@@ -2,6 +2,7 @@
 
 import { useLocale } from "@/lib/i18n/client";
 import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
+import { RouteAwareSkeleton } from "@/components/skeletons";
 
 // ─── Global cache (survives navigations, cleared only on full reload) ───────
 const cachedTranslations: Record<string, Record<string, string>> = {};
@@ -71,18 +72,9 @@ export function TranslationProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [locale]);
 
-  // Block rendering until translations are available
+  // Block rendering until translations are available — show route-matched skeleton
   if (!ready) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#fff" }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: "50%",
-          border: "4px solid #e5e7eb", borderTopColor: "#f5a623",
-          animation: "spin 0.8s linear infinite"
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <RouteAwareSkeleton />;
   }
 
   return (

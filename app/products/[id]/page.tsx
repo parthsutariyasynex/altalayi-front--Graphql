@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Price from "../../components/Price";
+import { ProductDetailSkeleton } from "@/components/skeletons";
 
 
 interface Product {
@@ -59,7 +60,7 @@ export default function CategoryProductsPage() {
     loadProducts();
   }, [categoryId]);
 
-  if (loading) return <div className="p-3 md:p-6">Loading products...</div>;
+  if (loading) return <ProductDetailSkeleton />;
   if (error) return <div className="p-3 md:p-6 text-red-500">{error}</div>;
 
   return (

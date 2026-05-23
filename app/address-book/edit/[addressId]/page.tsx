@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Sidebar from "@/components/Sidebar";
 import { api } from "@/lib/api/api-client";
+import { FormSkeleton, SidebarSkeleton } from "@/components/skeletons";
 
 export default function EditAddressPage() {
     const { addressId } = useParams();
@@ -121,12 +122,14 @@ export default function EditAddressPage() {
 
     if (loading) {
         return (
-            <>
-
-                <div className="flex items-center justify-center min-h-[calc(100vh-100px)] mt-4 md:mt-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f5a623]"></div>
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0 px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-10">
+                        <div className="max-w-2xl"><FormSkeleton fields={7} /></div>
+                    </main>
                 </div>
-            </>
+            </div>
         );
     }
 

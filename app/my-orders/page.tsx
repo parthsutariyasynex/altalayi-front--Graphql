@@ -11,6 +11,7 @@ import Sidebar from "@/components/Sidebar";
 import Filters from "@/components/Filters";
 import OrdersTable, { Order } from "@/components/OrdersTable";
 import Pagination from "@/components/Pagination";
+import { MyOrdersSkeleton, SidebarSkeleton } from "@/components/skeletons";
 import { useCart } from "@/modules/cart/context/CartContext";
 import { toast } from "react-hot-toast";
 
@@ -63,7 +64,14 @@ function mapOrder(item: any): Order {
 
 export default function MyOrdersPage() {
     return (
-        <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#f5a623]"></div></div>}>
+        <Suspense fallback={
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0"><MyOrdersSkeleton /></main>
+                </div>
+            </div>
+        }>
             <MyOrdersPageContent />
         </Suspense>
     );
@@ -328,8 +336,13 @@ function MyOrdersPageContent() {
 
     if (authStatus === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-200 border-t-[#f5a623]"></div>
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0">
+                        <MyOrdersSkeleton />
+                    </main>
+                </div>
             </div>
         );
     }

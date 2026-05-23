@@ -11,6 +11,7 @@ import { RootState } from "@/store/store";
 import Link from "next/link";
 import Addresses from "../../components/Addresses";
 import { redirectToLogin } from "@/utils/helpers";
+import { AddressBookSkeleton, SidebarSkeleton } from "@/components/skeletons";
 
 export default function AddressBookPage() {
     const router = useRouter();
@@ -34,15 +35,14 @@ export default function AddressBookPage() {
 
     if (status === "loading" || loading) {
         return (
-            <>
-
-                <div className="flex items-center justify-center min-h-screen bg-white">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#f5a623]"></div>
-                        <p className="text-gray-500 font-['Rubik']">{t("common.loading")}</p>
-                    </div>
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0">
+                        <AddressBookSkeleton />
+                    </main>
                 </div>
-            </>
+            </div>
         );
     }
 

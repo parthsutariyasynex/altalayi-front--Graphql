@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocalePath } from "@/hooks/useLocalePath";
+import { MultiLocationBillingSkeleton } from "@/components/skeletons";
 
 const MultiShippingBillingPage: React.FC = () => {
     const router = useRouter();
@@ -132,11 +133,7 @@ const MultiShippingBillingPage: React.FC = () => {
     };
 
     if (isCheckoutLoading && addresses.length === 0) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="w-10 h-10 border-4 border-gray-100 border-t-[#f5b21a] rounded-full animate-spin" />
-            </div>
-        );
+        return <MultiLocationBillingSkeleton />;
     }
 
     const currentAddress = addresses.find(a => a.id === selectedAddressId);

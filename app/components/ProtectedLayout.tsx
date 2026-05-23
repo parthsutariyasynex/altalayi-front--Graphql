@@ -9,6 +9,7 @@ import Footer from './Footer';
 import ScrollToTop from './ScrollToTop';
 import { stripLocaleFromPath, useLocale } from '@/lib/i18n/client';
 import { handleGlobalLogout } from '@/lib/auth/utils';
+import { RouteAwareContent } from '@/components/skeletons';
 
 interface ProtectedLayoutProps {
   children: ReactNode;
@@ -73,15 +74,14 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     }
   }, [status, isPublicPage, locale, pathname]);
 
-  // Show loading overlay while auth is checking on protected pages
+  // Show route-matched skeleton while auth is checking on protected pages
   if (isLoading && !isPublicPage) {
     return (
       <div className="flex flex-col min-h-screen bg-white">
         <Navbar />
-        <div className="h-[56px] sm:h-[64px] lg:h-[108px] flex-shrink-0" aria-hidden="true" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-100 border-t-[#f5a623]"></div>
-        </div>
+        <main className="flex-1 flex flex-col w-full relative">
+          <RouteAwareContent />
+        </main>
       </div>
     );
   }
@@ -95,11 +95,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
       <main className="flex-1 flex flex-col w-full relative">
         <div className="flex-1 flex flex-col w-full min-h-0">
-          {showContent ? children : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-100 border-t-[#f5a623]"></div>
-            </div>
-          )}
+          {showContent ? children : <RouteAwareContent />}
         </div>
 
         {!hideFooter && <Footer />}

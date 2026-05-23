@@ -15,6 +15,7 @@ import { redirectToLogin } from "@/utils/helpers";
 import PortalDropdown from "@/components/PortalDropdown";
 import { Hourglass } from "lucide-react";
 import CreditLimit from "@/app/components/CreditLimit";
+import { AccountSkeleton, SidebarSkeleton } from "@/components/skeletons";
 
 
 type CustomAttribute = {
@@ -112,10 +113,12 @@ export default function MyAccountPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-white">
-
-                <div className="flex items-center justify-center h-[60vh]">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F5B21B]"></div>
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0">
+                        <AccountSkeleton />
+                    </main>
                 </div>
             </div>
         );

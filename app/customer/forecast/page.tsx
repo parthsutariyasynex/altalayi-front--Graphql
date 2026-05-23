@@ -10,6 +10,7 @@ import Sidebar from "@/components/Sidebar";
 import { useSession } from "next-auth/react";
 import { redirectToLogin } from "@/utils/helpers";
 import PortalDropdown from "@/components/PortalDropdown";
+import { ForecastSkeleton, SidebarSkeleton } from "@/components/skeletons";
 
 /**
  * Proper data structures for the Forecast API
@@ -207,9 +208,10 @@ export default function MyForecastPage() {
 
     if (loading || loadingForecasts) {
         return (
-            <div className="min-h-screen bg-white">
-                <div className="flex items-center justify-center h-[60vh]">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f5b21a]"></div>
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0"><ForecastSkeleton /></main>
                 </div>
             </div>
         );

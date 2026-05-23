@@ -10,6 +10,7 @@ import { useRouter, useParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { toast } from "react-hot-toast";
 import { useCart } from "@/modules/cart/context/CartContext";
+import { OrderDetailSkeleton } from "@/components/skeletons";
 
 export default function OrderDetailsPage() {
     const { data: session, status: authStatus } = useSession();
@@ -308,8 +309,8 @@ export default function OrderDetailsPage() {
             <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
                 <div className="flex flex-col lg:flex-row flex-1 w-full">
                     <Sidebar />
-                    <main className="flex-1 w-full flex items-center justify-center p-4 md:p-8">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-yellow-400"></div>
+                    <main className="flex-1 min-w-0">
+                        <OrderDetailSkeleton />
                     </main>
                 </div>
             </div>
@@ -627,8 +628,14 @@ export default function OrderDetailsPage() {
                                 <p className="text-xs">{attachmentsError}</p>
                             </div>
                         ) : isAttachmentsLoading ? (
-                            <div className="bg-white rounded-md border border-[#ebebeb] p-20 flex justify-center items-center shadow-sm">
-                                <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-yellow-400"></div>
+                            <div className="bg-white rounded-md border border-[#ebebeb] p-4 shadow-sm space-y-2">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <div key={i} className="flex items-center gap-3 py-2">
+                                        <div className="h-3 w-24 bg-gray-200 rounded animate-pulse" />
+                                        <div className="h-3 flex-1 bg-gray-200 rounded animate-pulse" />
+                                        <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+                                    </div>
+                                ))}
                             </div>
                         ) : attachments.length > 0 ? (
                             <div className="bg-white border border-[#ebebeb] rounded-md overflow-hidden shadow-sm">

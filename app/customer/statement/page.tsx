@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import PortalDropdown from "@/components/PortalDropdown";
+import { StatementSkeleton, SidebarSkeleton } from "@/components/skeletons";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -70,8 +71,11 @@ export default function MyStatementPage() {
 
     if (authStatus === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f5a623]"></div>
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0"><StatementSkeleton /></main>
+                </div>
             </div>
         );
     }

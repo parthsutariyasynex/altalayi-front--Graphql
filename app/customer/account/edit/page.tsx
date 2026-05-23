@@ -12,10 +12,20 @@ import { fetchCustomerInfo } from "@/store/actions/customerActions";
 import { api } from "@/lib/api/api-client";
 import toast from "react-hot-toast";
 import { redirectToLogin } from "@/utils/helpers";
+import { FormSkeleton, SidebarSkeleton } from "@/components/skeletons";
 
 export default function EditAccountPage() {
     return (
-        <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#f5a623]"></div></div>}>
+        <Suspense fallback={
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0 px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-10">
+                        <div className="max-w-2xl"><FormSkeleton fields={6} /></div>
+                    </main>
+                </div>
+            </div>
+        }>
             <EditAccountPageContent />
         </Suspense>
     );
@@ -101,8 +111,13 @@ function EditAccountPageContent() {
 
     if (status === "loading" || loading || !customer) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F5B21B]"></div>
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0 px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-10">
+                        <div className="max-w-2xl"><FormSkeleton fields={6} /></div>
+                    </main>
+                </div>
             </div>
         );
     }

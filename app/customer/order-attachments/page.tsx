@@ -11,6 +11,7 @@ import PortalDropdown from "@/components/PortalDropdown";
 import Pagination from "@/components/Pagination";
 import toast from "react-hot-toast";
 import { redirectToLogin } from "@/utils/helpers";
+import { OrderAttachmentsSkeleton } from "@/components/skeletons";
 
 // Helper to normalize options (strings or objects) to {label, value} format
 function normalizeOptions(options: any[]): { label: string; value: string }[] {
@@ -286,10 +287,7 @@ export default function OrderAttachmentsPage() {
                             </button>
                         </div>
                     ) : isLoading ? (
-                        <div className="bg-white p-16 flex flex-col items-center justify-center border border-[#ebebeb] rounded-md shadow-sm">
-                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-400 mb-4"></div>
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t("common.loading")}</span>
-                        </div>
+                        <OrderAttachmentsSkeleton rows={6} />
                     ) : attachments.length > 0 ? (
                         <>
                             {/* Desktop Table */}

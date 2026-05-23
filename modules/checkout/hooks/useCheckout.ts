@@ -178,6 +178,11 @@ export function useCheckout(options: UseCheckoutOptions = {}) {
 
     // ─── Fetch Shipping Methods ───
     const fetchShippingMethods = useCallback(async () => {
+        const FALLBACK_METHODS: ShippingMethod[] = [
+            { code: "flatrate_flatrate", carrierCode: "flatrate", methodCode: "flatrate", title: "Flat Rate", description: "Standard Delivery", price: 15.00, currency: "SAR" },
+            { code: "free_free", carrierCode: "free", methodCode: "free", title: "Free Shipping", description: "Orders over 500 SAR", price: 0, currency: "SAR" },
+        ];
+
         try {
             const token = await getAuthToken();
             if (!token) return;
@@ -203,34 +208,24 @@ export function useCheckout(options: UseCheckoutOptions = {}) {
                     currency: m.base_currency_code || m.currency || "SAR",
                 }));
                 if (mapped.length > 0) {
-                    console.log("DEBUG: Shipping Methods Loaded:", mapped);
                     setShippingMethods(mapped);
                     return;
                 }
-                console.warn("DEBUG: No shipping methods found in API response");
+                // Empty methods array — fall through to fallback
             } else {
-                const data = await res.json();
-                const errorMsg = formatMagentoError(data);
-                throw new Error(errorMsg);
+                // Backend returned an error response (e.g. empty cart, no shipping configured).
+                // Read the message via .text() to avoid Next.js dev overlay flagging a thrown Error.
+                const body = await res.text().catch(() => "");
+                const msg = body.toLowerCase();
+                if (!msg.includes("empty cart") && !msg.includes("retrieving shipping methods")) {
+                    console.warn(`[shipping-methods] HTTP ${res.status}: ${body.slice(0, 200)}`);
+                }
             }
-            // Fallback if API returns nothing or fails
-            setShippingMethods([
-                { code: "flatrate_flatrate", carrierCode: "flatrate", methodCode: "flatrate", title: "Flat Rate", description: "Standard Delivery", price: 15.00, currency: "SAR" },
-                { code: "free_free", carrierCode: "free", methodCode: "free", title: "Free Shipping", description: "Orders over 500 SAR", price: 0, currency: "SAR" },
-            ]);
+            setShippingMethods(FALLBACK_METHODS);
         } catch (err) {
-            // Silently handle "empty cart" or generic retrieval errors during background fetch
-            const msg = err instanceof Error ? err.message.toLowerCase() : "";
-            if (msg.includes("empty cart") || msg.includes("retrieving shipping methods")) {
-                console.warn("Background fetch shipping methods skipped: cart not ready or empty");
-            } else {
-                console.error("Fetch Shipping Methods Error:", err);
-            }
-            // Fallback if API returns nothing or fails
-            setShippingMethods([
-                { code: "flatrate_flatrate", carrierCode: "flatrate", methodCode: "flatrate", title: "Flat Rate", description: "Standard Delivery", price: 15.00, currency: "SAR" },
-                { code: "free_free", carrierCode: "free", methodCode: "free", title: "Free Shipping", description: "Orders over 500 SAR", price: 0, currency: "SAR" },
-            ]);
+            // Network failure or unexpected runtime error
+            console.warn("[shipping-methods] network error, using fallback:", err);
+            setShippingMethods(FALLBACK_METHODS);
         }
     }, []);
 

@@ -6,6 +6,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCheckout } from "@/modules/checkout/hooks/useCheckout";
+import { MultiLocationSuccessSkeleton } from "@/components/skeletons";
 
 interface OrderRow {
     order_id: string;
@@ -15,11 +16,7 @@ interface OrderRow {
 
 const MultiShippingSuccessPage = () => {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="w-10 h-10 border-4 border-gray-100 border-t-[#f5b21a] rounded-full animate-spin" />
-            </div>
-        }>
+        <Suspense fallback={<MultiLocationSuccessSkeleton />}>
             <MultiShippingSuccessContent />
         </Suspense>
     );
@@ -90,14 +87,7 @@ const MultiShippingSuccessContent = () => {
     }, [orderId, fetchMultiShippingSuccess, router, hasFetched]);
 
     if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-gray-200 border-t-[#f5b21a] rounded-full animate-spin" />
-                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">{t("multi.verifying")}</p>
-                </div>
-            </div>
-        );
+        return <MultiLocationSuccessSkeleton />;
     }
 
     return (

@@ -11,6 +11,7 @@ import Drawer from "./Drawer";
 import Modal from "./Modal";
 import Price from "./Price";
 import AddToCartPopup from "./AddToCartPopup";
+import { FavouriteProductsSkeleton } from "@/components/skeletons";
 
 import { api } from "@/lib/api/api-client";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -225,11 +226,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
     const endItem = Math.min(currentPage * pageSize, totalCount);
 
     if (loading && favProducts.length === 0) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#f5a623]"></div>
-            </div>
-        );
+        return <FavouriteProductsSkeleton count={8} />;
     }
 
     const totalPages = Math.ceil(totalCount / pageSize);

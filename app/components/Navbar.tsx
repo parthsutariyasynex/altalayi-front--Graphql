@@ -253,7 +253,7 @@ export default function Navbar() {
   const { cart, refetchCart } = useCart();
   const [navLinks, setNavLinks] = useState<NavLink[]>([]);
   const [navLoading, setNavLoading] = useState(true);
-const [storeDropOpen, setStoreDropOpen] = useState(false);
+  const [storeDropOpen, setStoreDropOpen] = useState(false);
   const storeDropRef = useRef<HTMLDivElement>(null);
 
   const { data: customerData } = useSelector((state: RootState) => state.customer);
@@ -412,7 +412,12 @@ const [storeDropOpen, setStoreDropOpen] = useState(false);
         if (cancelled) return;
 
         if (!res.ok) {
-          throw new Error("Menu fetch failed");
+          // Non-2xx response is expected when unauthenticated or backend hiccups;
+          // we already cache locally and fall back gracefully. Log + bail without
+          // throwing so Next.js dev overlay doesn't flag a "real" error.
+          console.warn(`[Navbar] Menu fetch HTTP ${res.status}; keeping cached menu if any`);
+          if (!localCached) setNavLinks([]);
+          return;
         }
 
         const data = await res.json();
@@ -429,8 +434,8 @@ const [storeDropOpen, setStoreDropOpen] = useState(false);
           setNavLinks([]);
         }
       } catch (err) {
-        console.error("[Navbar] Menu fetch error:", err);
-        // Keep the locally-cached links if we had them; only clear if nothing
+        // Network-level failure (fetch threw) — log quietly, keep cached menu.
+        console.warn("[Navbar] Menu fetch network error:", err instanceof Error ? err.message : err);
         if (!cancelled && !localCached) setNavLinks([]);
       } finally {
         if (!cancelled) setNavLoading(false);
@@ -609,36 +614,37 @@ const [storeDropOpen, setStoreDropOpen] = useState(false);
       </header>
 
       {/* ── YELLOW NAV BAR — desktop only ── */}
-      {(navLoading || navLinks.length > 0) && (
-        <nav className="bg-[#f5b21a] w-full hidden lg:block">
-          <div className="flex items-center justify-center max-w-[1280px] mx-auto px-2 lg:px-4">
-            {navLoading ? (
-              <div className="flex items-center gap-6">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="h-3 w-20 bg-yellow-500/40 rounded animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              navLinks.map((item) => {
-                const href = resolveNavHref(item);
-                const isActive = pathname === href || pathname?.startsWith(href + "/");
-                return (
-                  <Link
-                    key={item.href || item.code || item.label}
-                    href={href}
-                    className={`py-3 flex items-center h-full px-2.5 lg:px-7 text-[11px] lg:text-[16px] font-semibold capitalize transition-all duration-200 whitespace-nowrap ${isActive
-                      ? "bg-black text-white"
-                      : "text-black hover:bg-black hover:text-white"
-                      }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })
-            )}
-          </div>
-        </nav>
-      )}
+      {/* Always rendered with a fixed min-height matching a loaded link's
+          natural height (py-3 + text-[16px] ≈ 48px) so the navbar's total
+          height never shifts between (loading | menu loaded | menu empty). */}
+      <nav className="bg-[#f5b21a] w-full hidden lg:block min-h-[48px]">
+        <div className="flex items-center justify-center max-w-[1280px] mx-auto px-2 lg:px-4 min-h-[48px]">
+          {navLoading ? (
+            <div className="flex items-center gap-6">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="h-3 w-20 bg-yellow-500/40 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            navLinks.map((item) => {
+              const href = resolveNavHref(item);
+              const isActive = pathname === href || pathname?.startsWith(href + "/");
+              return (
+                <Link
+                  key={item.href || item.code || item.label}
+                  href={href}
+                  className={`py-3 flex items-center h-full px-2.5 lg:px-7 text-[11px] lg:text-[16px] font-semibold capitalize transition-all duration-200 whitespace-nowrap ${isActive
+                    ? "bg-black text-white"
+                    : "text-black hover:bg-black hover:text-white"
+                    }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })
+          )}
+        </div>
+      </nav>
 
       {/* ── MOBILE DRAWER ── */}
       {isMenuOpen && (
