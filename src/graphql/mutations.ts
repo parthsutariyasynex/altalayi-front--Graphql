@@ -817,3 +817,30 @@ export const CREATE_EMPTY_CART_MUTATION = /* GraphQL */ `
     createEmptyCart
   }
 `;
+
+// ─── Multi-shipping ───
+// Start a multi-shipping checkout — switches the quote to multishipping mode and
+// returns the per-item rows + the customer's saved addresses to populate the form.
+// No args. Returns { success, items[{quote_item_id,name,sku,qty}],
+// addresses[{customer_address_id,city,street,region,postcode,country_id}] }.
+export const KLEVER_MULTISHIPPING_START_MUTATION = /* GraphQL */ `
+  mutation KleverMultishippingStart {
+    kleverMultishippingStart {
+      success
+      items {
+        quote_item_id
+        name
+        sku
+        qty
+      }
+      addresses {
+        customer_address_id
+        city
+        street
+        region
+        postcode
+        country_id
+      }
+    }
+  }
+`;
