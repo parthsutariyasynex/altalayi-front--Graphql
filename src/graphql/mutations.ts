@@ -861,3 +861,12 @@ export const KLEVER_MULTISHIPPING_SET_SHIPPING_METHODS_MUTATION = /* GraphQL */ 
     kleverMultishippingSetShippingMethods(input: $input)
   }
 `;
+
+// Set the billing address for a multi-shipping checkout. Takes addressId: Int!.
+// Returns Boolean. NOTE: the schema op has no payment-method argument — payment
+// method is handled separately (place-order), so only addressId is forwarded.
+export const KLEVER_MULTISHIPPING_SET_BILLING_ADDRESS_MUTATION = /* GraphQL */ `
+  mutation KleverMultishippingSetBillingAddress($addressId: Int!) {
+    kleverMultishippingSetBillingAddress(addressId: $addressId)
+  }
+`;
