@@ -538,21 +538,17 @@ export const CUSTOMER_CART_QUERY = /* GraphQL */ `
       id
       total_quantity
       items {
-        uid
-        quantity
+        id
         product {
           sku
           name
-          url_key
-          thumbnail {
+          small_image {
             url
+            label
           }
         }
+        quantity
         prices {
-          price {
-            value
-            currency
-          }
           row_total {
             value
             currency
@@ -566,6 +562,7 @@ export const CUSTOMER_CART_QUERY = /* GraphQL */ `
         }
         subtotal_excluding_tax {
           value
+          currency
         }
       }
     }

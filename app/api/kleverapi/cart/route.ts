@@ -5,9 +5,11 @@ import { CUSTOMER_CART_QUERY } from "@/src/graphql/queries";
 
 const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-// item uid is base64 of the numeric quote item id (verified: atob("MTEzOTE0")="113914").
-function uidToItemId(uid: string): number {
-    try { return Number(Buffer.from(uid, "base64").toString("utf-8")) || 0; } catch { return 0; }
+// The cart item `id` is the numeric quote item id (also what removeItemFromCart /
+// updateCartItems take as cart_item_id). cart_item_uid is its base64 form, returned
+// additively for compatibility.
+function itemUid(id: number | string): string {
+    return Buffer.from(String(id)).toString("base64");
 }
 
 // GraphQL product image URLs point at the Magento image CACHE path
@@ -64,19 +66,21 @@ export async function GET(req: Request) {
         const items = (Array.isArray(cart.items) ? cart.items : []).map((it: any) => {
             const name = it.product?.name ?? "";
             const { size_display, pattern_display } = parseDisplays(name);
-            const url_key = it.product?.url_key;
+            const item_id = Number(it.id) || 0;          // numeric quote item id (what CartContext + UI use)
+            const qty = Number(it.quantity ?? 0);
+            const row_total = Number(it.prices?.row_total?.value ?? 0);
             return {
-                item_id: uidToItemId(it.uid),     // numeric, what CartContext + UI use
-                cart_item_uid: it.uid,            // raw uid (additive; for GraphQL mutations)
+                item_id,
+                cart_item_uid: itemUid(it.id),           // base64 form (additive)
                 sku: it.product?.sku ?? "",
                 name,
-                price: Number(it.prices?.price?.value ?? 0),
-                qty: Number(it.quantity ?? 0),
-                image_url: directImageUrl(it.product?.thumbnail?.url),
-                product_url: url_key ? `/products/${url_key}` : undefined,
+                // This query returns only row_total (no per-unit price) → derive unit price.
+                price: qty > 0 ? row_total / qty : row_total,
+                qty,
+                image_url: directImageUrl(it.product?.small_image?.url),
                 size_display,
                 pattern_display,
-                row_total: Number(it.prices?.row_total?.value ?? 0),
+                row_total,
             };
         });
 
