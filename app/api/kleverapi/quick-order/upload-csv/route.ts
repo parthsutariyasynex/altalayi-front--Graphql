@@ -1,67 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_QUICK_ORDER_UPLOAD_CSV_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// POST — upload a quick-order CSV (GraphQL: kleverQuickOrderUploadCsv). The client
+// already base64-encodes the file and sends { fileContent, fileName }. Returns
+// { grand_total, items: [{ sku, name, qty, price, is_valid, error_message }] }.
+// NOT executed during this migration — schema-validated + build-verified only.
 export async function POST(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        let token: string | null = null;
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const authHeader = request.headers.get("authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-            token = authHeader.substring(7).replace(/['"]/g, "").trim();
-        }
-
-        if (!token) {
-            token = request.cookies.get("auth-token")?.value?.replace(/['"]/g, "").trim() || null;
-        }
-
-        if (!token || token === "null" || token === "undefined") {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
-
-        // Expected JSON Body: { fileContent: "base64..." }
         const body = await request.json();
+        const fileContent = body?.fileContent ?? "";
+        if (!fileContent) return NextResponse.json({ message: "fileContent is required" }, { status: 400 });
 
-        if (!body.fileContent) {
-            return NextResponse.json({ message: "No file content provided" }, { status: 400 });
-        }
-
-        // Mageplaza Quick Order Upload CSV API
-        const magentoUrl = `${BASE_URL}/quick-order/upload-csv`;
-
-        console.log("[quick-order/upload-csv] Uploading base64 content to:", magentoUrl);
-
-        const res = await fetch(magentoUrl, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-                fileContent: body.fileContent,
-                file_name: body.fileName || "quick_order.csv" // Optional: preserve original name if sent
-            }),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_QUICK_ORDER_UPLOAD_CSV_MUTATION, variables: { fileContent } }),
+            cache: "no-store",
         });
 
-        const responseText = await res.text();
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch {
-            data = { message: "Failed to parse backend response", raw: responseText };
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[quick-order/upload-csv] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Upload failed" }, { status: 400 });
         }
-
-        if (!res.ok) {
-            console.error("[quick-order/upload-csv] Magento error:", res.status, data);
-            return NextResponse.json(data, { status: res.status });
-        }
-
-        return NextResponse.json(data);
-
+        const r = json?.data?.kleverQuickOrderUploadCsv;
+        return NextResponse.json({
+            grand_total: r?.grand_total ?? 0,
+            items: Array.isArray(r?.items) ? r.items : [],
+        });
     } catch (error: any) {
-        console.error("[quick-order/upload-csv] Catch Error:", error.message);
-        return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });
+        console.error("[quick-order/upload-csv] error:", error.message);
+        return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

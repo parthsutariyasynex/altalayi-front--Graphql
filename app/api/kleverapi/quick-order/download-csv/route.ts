@@ -1,57 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_QUICK_ORDER_DOWNLOAD_CSV_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — quick-order sample CSV (GraphQL: kleverQuickOrderDownloadCsv).
+// Returns JSON { file_name, file_content (base64), content_type, total_products };
+// the client decodes file_content and triggers the download. Optional ?categoryId=.
 export async function GET(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        let token: string | null = null;
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const authHeader = request.headers.get("authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-            token = authHeader.substring(7).replace(/['"]/g, "").trim();
-        }
+        const categoryIdParam = new URL(request.url).searchParams.get("categoryId");
+        const variables: Record<string, number> = {};
+        if (categoryIdParam) variables.categoryId = parseInt(categoryIdParam, 10);
 
-        if (!token) {
-            token = request.cookies.get("auth-token")?.value?.replace(/['"]/g, "").trim() || null;
-        }
-
-        if (!token || token === "null" || token === "undefined") {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
-
-        // Mageplaza Quick Order Download CSV API
-        const magentoUrl = `${BASE_URL}/quick-order/download-csv`;
-
-        console.log("[quick-order/download-csv] Requesting CSV from:", magentoUrl);
-
-        const res = await fetch(magentoUrl, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_QUICK_ORDER_DOWNLOAD_CSV_QUERY, variables }),
             cache: "no-store",
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error("[quick-order/download-csv] Magento error:", res.status, errBody);
-            return NextResponse.json({ error: "Download failed", details: errBody }, { status: res.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[quick-order/download-csv] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Download failed" }, { status: 502 });
         }
-
-        const data = await res.json();
-        console.log("[quick-order/download-csv] Magento data received:", {
-            success: data?.success,
-            hasBase64: !!data?.base64,
-            message: data?.message
-        });
-
-        return NextResponse.json(data);
-
+        return NextResponse.json(json?.data?.kleverQuickOrderDownloadCsv ?? {});
     } catch (error: any) {
-        console.error("[quick-order/download-csv] Error:", error.message);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        console.error("[quick-order/download-csv] error:", error.message);
+        return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }
