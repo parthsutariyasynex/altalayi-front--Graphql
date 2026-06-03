@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBaseUrl, getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
 import { getRequestToken } from "@/lib/api/auth-helper";
 import { KLEVER_MULTISHIPPING_SHIPPING_METHODS_QUERY } from "@/src/graphql/queries";
+import { KLEVER_MULTISHIPPING_SET_SHIPPING_METHODS_MUTATION } from "@/src/graphql/mutations";
 
 const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
@@ -36,39 +37,45 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(req: Request) {
+// POST — set the chosen shipping method per address (GraphQL:
+// kleverMultishippingSetShippingMethods). The hook sends camelCase
+// { request: { methods: [{ quoteAddressId, carrierCode, methodCode }] } }; the route
+// maps to the snake_case schema input { quote_address_id: Int!, carrier_code: String!,
+// method_code: String! } and returns { success: Boolean }. NOT executed during
+// migration — modifies the quote; schema-validated + build-verified only.
+export async function POST(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const body = await req.json();
-        console.log(">>> Set Multishipping Shipping Methods REQUEST:", JSON.stringify(body, null, 2));
+        const body = await request.json();
+        const rawMethods = body?.request?.methods ?? body?.methods ?? [];
+        const methods = (Array.isArray(rawMethods) ? rawMethods : []).map((m: any) => ({
+            quote_address_id: Number(m.quoteAddressId ?? m.quote_address_id),
+            carrier_code: String(m.carrierCode ?? m.carrier_code ?? ""),
+            method_code: String(m.methodCode ?? m.method_code ?? ""),
+        }));
 
-        const response = await fetch(`${BASE_URL}/multishipping/shipping-methods`, {
+        if (methods.length === 0) {
+            return NextResponse.json({ message: "methods are required" }, { status: 400 });
+        }
+
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                Authorization: authHeader,
-                "Content-Type": "application/json",
-                platform: "web",
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_MULTISHIPPING_SET_SHIPPING_METHODS_MUTATION, variables: { input: { methods } } }),
             cache: "no-store",
         });
 
-        const responseText = await response.text();
-        console.log("<<< Set Multishipping Shipping Methods RESPONSE:", response.status, responseText);
-
-        if (!response.ok) {
-            let errorData;
-            try { errorData = JSON.parse(responseText); } catch { errorData = { message: responseText }; }
-            return NextResponse.json(errorData, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[multishipping/shipping-methods POST] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to set shipping methods" }, { status: 400 });
         }
 
-        const data = JSON.parse(responseText);
-        return NextResponse.json(data);
-    } catch (error) {
-        console.error("Proxy Set Multishipping Shipping Methods Error:", error);
+        return NextResponse.json({ success: json?.data?.kleverMultishippingSetShippingMethods ?? false });
+    } catch (error: any) {
+        console.error("[multishipping/shipping-methods POST] error:", error.message);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

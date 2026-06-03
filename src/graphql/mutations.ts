@@ -852,3 +852,12 @@ export const KLEVER_MULTISHIPPING_ASSIGN_MUTATION = /* GraphQL */ `
     kleverMultishippingAssign(input: $input)
   }
 `;
+
+// Set the chosen shipping method per quote address for multi-shipping. input.methods is
+// a list of { quote_address_id: Int!, carrier_code: String!, method_code: String! }.
+// Returns Boolean.
+export const KLEVER_MULTISHIPPING_SET_SHIPPING_METHODS_MUTATION = /* GraphQL */ `
+  mutation KleverMultishippingSetShippingMethods($input: KleverMultishippingSetMethodsInput!) {
+    kleverMultishippingSetShippingMethods(input: $input)
+  }
+`;
