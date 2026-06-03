@@ -748,3 +748,10 @@ export const KLEVER_PLACE_ORDER_MUTATION = /* GraphQL */ `
     }
   }
 `;
+
+// Clear the customer's cart — Klever custom, token-based (no cart_id), returns Boolean.
+export const KLEVER_CLEAR_CART_MUTATION = /* GraphQL */ `
+  mutation KleverClearCart {
+    kleverClearCart
+  }
+`;

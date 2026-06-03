@@ -1,48 +1,45 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { getCustomerCartId } from "@/lib/api/customer-cart";
+import { UPDATE_CART_ITEMS_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function PUT(req: Request, { params }: { params: Promise<{ itemId: string }> }) {
+// PUT — update a cart item's quantity (GraphQL: updateCartItems). The numeric
+// item_id from the path maps directly to cart_item_id (no uid encoding needed).
+// Body: { qty }. NOT executed during this migration — schema-validated + build-verified.
+export async function PUT(
+    req: Request,
+    { params }: { params: Promise<{ itemId: string }> }
+) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
+        const locale = getLocaleFromRequest(req);
         const { itemId } = await params;
-        const body = await req.json();
-        const { qty } = body;
+        const { qty } = await req.json();
+        const cartId = await getCustomerCartId(token, locale);
+        if (!cartId) return NextResponse.json({ message: "No active cart" }, { status: 400 });
 
-        // Requirement: Send the updated quantity in the request body.
-        const payload = { qty: Number(qty) };
-        console.log(">>> Update Cart REQUEST:", `${BASE_URL}/cart/update/${itemId}`, payload);
-
-        const response = await fetch(`${BASE_URL}/cart/update/${itemId}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: authHeader,
-            },
-            body: JSON.stringify(payload),
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: locale, Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                query: UPDATE_CART_ITEMS_MUTATION,
+                variables: { cartId, items: [{ cart_item_id: parseInt(itemId, 10), quantity: Number(qty) }] },
+            }),
+            cache: "no-store",
         });
 
-        const responseText = await response.text();
-        console.log("<<< Update Cart RESPONSE:", response.status, responseText);
-
-        if (!response.ok) {
-            console.error("Update Cart API error:", response.status, responseText);
-            return NextResponse.json(
-                { message: "Failed to update cart item", details: responseText },
-                { status: response.status }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to update cart" }, { status: 400 });
         }
-
-        const data = JSON.parse(responseText);
-        return NextResponse.json(data);
+        return NextResponse.json({ success: true, cart: json?.data?.updateCartItems?.cart ?? null });
     } catch (error) {
-        console.error("Proxy PUT Error:", error);
+        console.error("Cart Update Error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

@@ -538,44 +538,35 @@ export const CUSTOMER_CART_QUERY = /* GraphQL */ `
       id
       total_quantity
       items {
-        id
+        uid
         quantity
         product {
           sku
           name
           url_key
-          small_image {
+          thumbnail {
             url
-            label
-          }
-          price_range {
-            minimum_price {
-              final_price { value currency }
-              regular_price { value currency }
-            }
           }
         }
         prices {
-          price { value currency }
-          row_total { value currency }
-          total_item_discount { value currency }
+          price {
+            value
+            currency
+          }
+          row_total {
+            value
+            currency
+          }
         }
       }
       prices {
-        grand_total { value currency }
-        subtotal_excluding_tax { value currency }
-        subtotal_including_tax { value currency }
-        applied_taxes {
-          amount { value currency }
-          label
+        grand_total {
+          value
+          currency
         }
-        discounts {
-          amount { value currency }
-          label
+        subtotal_excluding_tax {
+          value
         }
-      }
-      applied_coupons {
-        code
       }
     }
   }
