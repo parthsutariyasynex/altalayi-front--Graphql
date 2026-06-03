@@ -1,54 +1,43 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { getCustomerCartId } from "@/lib/api/customer-cart";
+import { SET_SHIPPING_ADDRESSES_ON_CART_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// POST — set the cart's shipping address (GraphQL: setShippingAddressesOnCart).
+// Needs the masked cart_id (via getCustomerCartId). Body: { address_id }.
+// The consumer (useCheckout.setShippingAddress) tolerates the response and re-fetches
+// totals + shipping methods, so we return a minimal success object.
+// NOT executed during this migration — schema-validated + build-verified only.
 export async function POST(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("Shipping Address Proxy: Invalid token:", authHeader);
-            return NextResponse.json({ message: "Unauthorized: Invalid customer token" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized: Invalid customer token" }, { status: 401 });
 
+        const locale = getLocaleFromRequest(req);
         const body = await req.json();
-        console.log(`>>> Set Shipping Address REQUEST: ${BASE_URL}/checkout/shipping-address`, body);
+        const addressId = Number(body.address_id ?? body.addressId);
+        if (!addressId) return NextResponse.json({ message: "address_id is required" }, { status: 400 });
 
-        const response = await fetch(`${BASE_URL}/checkout/shipping-address`, {
+        const cartId = await getCustomerCartId(token, locale);
+        if (!cartId) return NextResponse.json({ message: "No active cart" }, { status: 400 });
+
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                Authorization: authHeader,
-                "Content-Type": "application/json",
-                accept: "application/json",
-                platform: "web",
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: locale, Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: SET_SHIPPING_ADDRESSES_ON_CART_MUTATION, variables: { cartId, addressId } }),
             cache: "no-store",
         });
 
-        // Safe response parsing
-        const responseText = await response.text();
-        let data;
-        try {
-            data = responseText ? JSON.parse(responseText) : {};
-        } catch (err) {
-            console.error(`<<< Set Shipping Address RESPONSE: ${response.status} (FAILED TO PARSE JSON)`, responseText);
-            return NextResponse.json(
-                { message: "Invalid backend response format", details: responseText.substring(0, 200) },
-                { status: 502 }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to set shipping address" }, { status: 400 });
         }
-
-        console.log(`<<< Set Shipping Address RESPONSE: ${response.status}`, data);
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
-        }
-
-        return NextResponse.json(data);
-    } catch (error: any) {
-        console.error("Proxy POST Shipping Address Error:", error);
-        return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 });
+        return NextResponse.json({ success: true, cart: json?.data?.setShippingAddressesOnCart?.cart ?? null });
+    } catch (error) {
+        console.error("Set Shipping Address Error:", error);
+        return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

@@ -624,6 +624,24 @@ export const CART_PAYMENT_METHODS_QUERY = /* GraphQL */ `
   }
 `;
 
+// Native cart.prices for the checkout totals route (kleverCheckoutTotals does not
+// exist on the live schema). Money objects are flattened to numbers in the route.
+export const CART_TOTALS_QUERY = /* GraphQL */ `
+  query CartTotals($cartId: String!) {
+    cart(cart_id: $cartId) {
+      prices {
+        grand_total { value currency }
+        subtotal_excluding_tax { value }
+        subtotal_including_tax { value }
+        applied_taxes { amount { value } }
+      }
+      shipping_addresses {
+        selected_shipping_method { amount { value } }
+      }
+    }
+  }
+`;
+
 export const PICKUP_LOCATIONS_QUERY = /* GraphQL */ `
   query PickupLocations(
     $countryCode: String
