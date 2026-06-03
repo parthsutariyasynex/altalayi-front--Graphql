@@ -1,52 +1,39 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { getCustomerCartId } from "@/lib/api/customer-cart";
+import { CART_PAYMENT_METHODS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — available payment methods (GraphQL: cart.available_payment_methods).
+// Returns an array of { code, title } — the useCheckout consumer reads data.methods
+// || data.payment_methods || array, then maps {code,title}, so the array is correct.
 export async function GET(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("Payment Methods Proxy: Invalid token:", authHeader);
-            return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        console.log(`>>> Payment Methods GET REQUEST: ${BASE_URL}/checkout/payment-methods`);
+        const locale = getLocaleFromRequest(req);
+        const cartId = await getCustomerCartId(token, locale);
+        if (!cartId) return NextResponse.json([]); // no active cart → empty (consumer has fallback)
 
-        const response = await fetch(`${BASE_URL}/checkout/payment-methods`, {
-            method: "GET",
-            headers: {
-                Authorization: authHeader,
-                "Content-Type": "application/json",
-                accept: "application/json",
-                platform: "web",
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: locale, Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: CART_PAYMENT_METHODS_QUERY, variables: { cartId } }),
             cache: "no-store",
         });
 
-        // Safe response parsing
-        const responseText = await response.text();
-        let data;
-        try {
-            data = responseText ? JSON.parse(responseText) : {};
-        } catch (err) {
-            console.error(`<<< Payment Methods GET RESPONSE: ${response.status} (FAILED TO PARSE JSON)`, responseText);
-            return NextResponse.json(
-                { message: "Invalid backend response format", details: responseText.substring(0, 200) },
-                { status: 502 }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[payment-methods] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json([]);
         }
-
-        console.log(`<<< Payment Methods GET RESPONSE: ${response.status}`, data);
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
-        }
-
-        return NextResponse.json(data);
-    } catch (error: any) {
-        console.error("Proxy GET Payment Methods Error:", error);
-        return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 });
+        const methods = json?.data?.cart?.available_payment_methods ?? [];
+        return NextResponse.json(methods);
+    } catch (error) {
+        console.error("Payment Methods Error:", error);
+        return NextResponse.json([]);
     }
 }

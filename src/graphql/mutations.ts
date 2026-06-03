@@ -733,3 +733,18 @@ export const KLEVER_RESET_PASSWORD_BY_MOBILE_MUTATION = /* GraphQL */ `
     kleverResetPasswordByMobile(resetToken: $resetToken, newPassword: $newPassword, confirmPassword: $confirmPassword)
   }
 `;
+
+// Place order — Klever custom, token-based (NO cart_id). Shipping address/method
+// must already be set on the quote via the prior checkout steps; this only takes
+// the payment method. Returns the order summary the success page reads.
+export const KLEVER_PLACE_ORDER_MUTATION = /* GraphQL */ `
+  mutation KleverPlaceOrder($paymentMethod: String!) {
+    kleverPlaceOrder(paymentMethod: $paymentMethod) {
+      order_id
+      order_increment_id
+      grand_total
+      currency_code
+      status
+    }
+  }
+`;
