@@ -1,47 +1,38 @@
 import { NextResponse, NextRequest } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth-options";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_TARGETS_ACHIEVEMENTS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — targets & achievements (GraphQL: kleverTargetsAchievements)
 export async function GET(req: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        let token: string | null = null;
-        const authHeader = req.headers.get("authorization");
-        if (authHeader && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-        }
-
-        if (!token) {
-            token = req.cookies.get("auth-token")?.value || null;
-        }
-
-        if (!token) {
-            const session: any = await getServerSession(authOptions);
-            token = session?.accessToken || null;
-        }
-
+        const token = await getRequestToken(req);
         if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const { searchParams } = new URL(req.url);
-        const year = searchParams.get("year");
+        const year = new URL(req.url).searchParams.get("year");
+        const variables: Record<string, number> = {};
+        if (year) variables.year = parseInt(year, 10);
 
-        const response = await fetch(`${BASE_URL}/targets-achievements?year=${year}`, {
-            method: "GET",
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
-                platform: "web",
+                Store: getLocaleFromRequest(req),
+                Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ query: KLEVER_TARGETS_ACHIEVEMENTS_QUERY, variables }),
             cache: "no-store",
         });
 
-        const data = await response.json();
-        if (!response.ok) return NextResponse.json(data, { status: response.status });
-
-        return NextResponse.json(data);
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[targets-achievements] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: "Magento GraphQL error", details: json.errors }, { status: 502 });
+        }
+        // Preserve the existing REST shape: { available_years, years }.
+        return NextResponse.json(json?.data?.kleverTargetsAchievements ?? {});
     } catch (error) {
         console.error("Proxy Targets & Achievements Error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });

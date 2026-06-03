@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBaseUrl } from '@/lib/api/magento-url';
 import { getRequestToken } from '@/lib/api/auth-helper';
 
+// NOTE: This route is intentionally KEPT ON REST (not migrated to GraphQL).
+// The REST /my-account returns the full Magento customer object the account/profile
+// UI depends on (id, group_id, default_billing/shipping, addresses, custom_attributes,
+// extension_attributes). The available GraphQL ops can't preserve that shape:
+//   - native `customer` returns only firstname/lastname/email/taxvat (+ limited addresses)
+//   - `kleverDashboard` is stale/broken (schema rejects its `customer` field)
+// Migrating would drop fields and break the UI, so it stays REST until a GraphQL
+// op exposes the full customer shape. (Tracked as a pending route.)
+
 export async function GET(request: NextRequest) {
     try {
         const baseUrl = getBaseUrl(request);

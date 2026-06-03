@@ -1,55 +1,36 @@
-import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_STATEMENT_TYPES_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function GET(request: Request) {
+// GET — statement types (GraphQL: kleverStatementTypes) → array of { code, label }
+export async function GET(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("[my-statement-types] Invalid token:", authHeader);
-            return NextResponse.json({ message: 'Unauthorized: Invalid token format' }, { status: 401 });
-        }
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
 
-        const magentoUrl = `${BASE_URL}/my-statement/types`;
-        console.log(`>>> My Statement Types GET REQUEST: ${magentoUrl}`);
-
-        const response = await fetch(magentoUrl, {
-            method: 'GET',
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': authHeader,
-                'platform': 'web',
+                "Content-Type": "application/json",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
-            cache: 'no-store',
+            body: JSON.stringify({ query: KLEVER_STATEMENT_TYPES_QUERY }),
+            cache: "no-store",
         });
 
-        // Safe response parsing
-        const responseText = await response.text();
-        let data;
-        try {
-            data = responseText ? JSON.parse(responseText) : {};
-        } catch (err) {
-            console.error(`<<< My Statement Types GET RESPONSE: ${response.status} (FAILED TO PARSE JSON)`, responseText);
-            return NextResponse.json(
-                { message: "Invalid backend response format", details: responseText.substring(0, 200) },
-                { status: 502 }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[my-statement-types] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: "Magento GraphQL error", details: json.errors }, { status: 502 });
         }
-
-        console.log(`<<< My Statement Types GET RESPONSE: ${response.status}`, data);
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
-        }
-
-        return NextResponse.json(data);
+        // Preserve the existing REST shape: array of { code, label }.
+        return NextResponse.json(json?.data?.kleverStatementTypes ?? []);
     } catch (error: any) {
-        console.error('[my-statement-types] Catch error:', error);
-        return NextResponse.json(
-            { message: error.message || 'Server error fetching statement types' },
-            { status: 500 }
-        );
+        console.error("[my-statement-types] Catch error:", error);
+        return NextResponse.json({ message: error.message || "Server error fetching statement types" }, { status: 500 });
     }
 }

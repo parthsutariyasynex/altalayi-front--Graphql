@@ -1,63 +1,45 @@
-import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_NOTIFICATIONS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function GET(req: Request) {
+// GET — list notifications (GraphQL: kleverNotifications)
+export async function GET(req: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const { searchParams } = new URL(req.url);
-        const pageSize = searchParams.get("pageSize") || "15";
-        const currentPage = searchParams.get("currentPage") || "1";
-
-        const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-
-        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("[Notifications Proxy] Missing or invalid token format:", authHeader);
+        const token = await getRequestToken(req);
+        if (!token) {
             return NextResponse.json({ message: "Unauthorized: Missing or invalid customer token" }, { status: 401 });
         }
 
-        const url = `${BASE_URL}/notifications?pageSize=${pageSize}&currentPage=${currentPage}`;
-        console.log("[Notifications Proxy] Fetching from Magento:", url);
+        const { searchParams } = new URL(req.url);
+        const pageSize = parseInt(searchParams.get("pageSize") || "15", 10);
+        const currentPage = parseInt(searchParams.get("currentPage") || "1", 10);
 
-        const response = await fetch(url, {
-            method: "GET",
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                "Authorization": authHeader,
                 "Content-Type": "application/json",
-                "platform": "web",
+                Store: getLocaleFromRequest(req),
+                Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ query: KLEVER_NOTIFICATIONS_QUERY, variables: { pageSize, currentPage } }),
             cache: "no-store",
         });
 
-        const data = await response.json();
-        console.log("[Notifications Proxy] Magento Response Status:", response.status);
-
-        if (!response.ok) {
-            console.error("[Notifications Proxy] Magento error:", response.status, JSON.stringify(data).substring(0, 500));
-            return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[notifications] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: "Magento GraphQL error", details: json.errors }, { status: 502 });
         }
 
-        // Normalize: find the notification items array from whatever key Magento uses
-        let items: any[] = [];
-        if (Array.isArray(data)) {
-            items = data;
-        } else {
-            // Try common Magento response field names
-            for (const key of Object.keys(data)) {
-                if (Array.isArray(data[key]) && data[key].length > 0) {
-                    console.log("[Notifications] Found items array in key:", key, "count:", data[key].length);
-                    items = data[key];
-                    break;
-                }
-            }
-        }
-
-        // Return normalized response
+        const r = json?.data?.kleverNotifications;
+        // Preserve the existing REST shape exactly.
         return NextResponse.json({
-            items,
-            total_count: data.total_count ?? data.totalCount ?? items.length,
-            unread_count: data.unread_count ?? data.unreadCount ?? 0,
+            items: Array.isArray(r?.items) ? r.items : [],
+            total_count: r?.total_count ?? 0,
+            unread_count: r?.unread_count ?? 0,
         });
     } catch (error) {
         console.error("Proxy GET Notifications Error:", error);
