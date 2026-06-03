@@ -1,58 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_QUICK_ORDER_UPDATE_ITEM_QTY_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// PUT — update a quick-order item's quantity (GraphQL: kleverQuickOrderUpdateQty).
+// SKU from path, { qty } from body. Returns the full quick-order cart shape.
+// NOT executed during this migration — schema-validated + build-verified only.
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ sku: string }> }
 ) {
-    const { sku } = await params;
     try {
-        const BASE_URL = getBaseUrl(request);
-        const body = await request.json(); // Expected: { qty: number }
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        let token: string | null = null;
+        const { sku } = await params;
+        const { qty } = await request.json();
 
-        const authHeader = request.headers.get("authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-            token = authHeader.substring(7).replace(/['"]/g, "").trim();
-        }
-
-        if (!token) {
-            token = request.cookies.get("auth-token")?.value?.replace(/['"]/g, "").trim() || null;
-        }
-
-        if (!token || token === "null" || token === "undefined") {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
-
-        // Mageplaza Quick Order Update Quantity API
-        const magentoUrl = `${BASE_URL}/quick-order/update-qty/${sku}`;
-
-        console.log("[quick-order/update-qty] Updating item:", sku, "to qty:", body.qty, "at:", magentoUrl);
-
-        const res = await fetch(magentoUrl, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                query: KLEVER_QUICK_ORDER_UPDATE_ITEM_QTY_MUTATION,
+                variables: { sku: decodeURIComponent(sku), qty: Number(qty) },
+            }),
             cache: "no-store",
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error(`[quick-order/update-qty] Magento error for ${sku}:`, res.status, errBody);
-            return NextResponse.json({ error: "Update failed", details: errBody }, { status: res.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[quick-order/update-qty] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ success: false, message: json.errors[0]?.message || "Failed to update quantity" }, { status: 400 });
         }
-
-        const data = await res.json();
-        return NextResponse.json(data);
-
+        return NextResponse.json(json?.data?.kleverQuickOrderUpdateQty ?? { success: false });
     } catch (error: any) {
-        console.error(`[quick-order/update-qty] Error for ${sku}:`, error.message);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        console.error("[quick-order/update-qty] error:", error.message);
+        return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 });
     }
 }

@@ -504,12 +504,28 @@ export const KLEVER_QUICK_ORDER_REMOVE_ITEM_MUTATION = /* GraphQL */ `
   }
 `;
 
+// Op is kleverQuickOrderUpdateQty (kleverQuickOrderUpdateItemQty does NOT exist).
 export const KLEVER_QUICK_ORDER_UPDATE_ITEM_QTY_MUTATION = /* GraphQL */ `
-  mutation KleverQuickOrderUpdateItemQty($sku: String!, $qty: Float!) {
-    kleverQuickOrderUpdateItemQty(sku: $sku, qty: $qty) {
-      success
-      items_count
+  mutation KleverQuickOrderUpdateQty($sku: String!, $qty: Float!) {
+    kleverQuickOrderUpdateQty(sku: $sku, qty: $qty) {
       grand_total
+      items {
+        image_url
+        item_id
+        name
+        pattern_display
+        price
+        product_id
+        product_url
+        qty
+        row_total
+        size_display
+        sku
+      }
+      items_count
+      message
+      redirect_url
+      success
     }
   }
 `;
