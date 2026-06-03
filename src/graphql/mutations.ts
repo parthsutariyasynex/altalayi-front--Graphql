@@ -1,9 +1,21 @@
 export const ADD_PRODUCTS_TO_CART_MUTATION = /* GraphQL */ `
-  mutation AddProductsToCart($cartId: String!, $cartItems: [CartItemInput!]!) {
+  mutation AddToCart($cartId: String!, $cartItems: [CartItemInput!]!) {
     addProductsToCart(cartId: $cartId, cartItems: $cartItems) {
       cart {
         id
         total_quantity
+        items {
+          id
+          quantity
+          product {
+            sku
+            name
+            small_image {
+              url
+              label
+            }
+          }
+        }
       }
       user_errors {
         code
