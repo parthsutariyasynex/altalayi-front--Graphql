@@ -767,3 +767,12 @@ export const KLEVER_CLEAR_CART_MUTATION = /* GraphQL */ `
     kleverClearCart
   }
 `;
+
+// Create/ensure the customer's cart, returning its masked cart_id (String). For a
+// logged-in customer this is idempotent — it returns the existing cart id without
+// wiping items. Used as a fallback by getCustomerCartId() when none exists yet.
+export const CREATE_EMPTY_CART_MUTATION = /* GraphQL */ `
+  mutation CreateEmptyCart {
+    createEmptyCart
+  }
+`;

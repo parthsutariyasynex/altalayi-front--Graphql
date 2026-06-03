@@ -1,6 +1,17 @@
 import { CUSTOMER_CART_ID_QUERY } from "@/src/graphql/queries";
+import { CREATE_EMPTY_CART_MUTATION } from "@/src/graphql/mutations";
 
 const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
+
+async function gql(query: string, token: string, locale: string): Promise<any> {
+    const res = await fetch(MAGENTO_GRAPHQL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Store: locale, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ query }),
+        cache: "no-store",
+    });
+    return res.json();
+}
 
 // Resolves the logged-in customer's masked cart id (the `cart_id` that Magento-native
 // cart queries/mutations require) via `customerCart { id }`, cached briefly per token
@@ -21,18 +32,17 @@ export async function getCustomerCartId(token: string, locale: string): Promise<
     if (hit && hit.expires > now) return hit.id;
 
     try {
-        const res = await fetch(MAGENTO_GRAPHQL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Store: locale,
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ query: CUSTOMER_CART_ID_QUERY }),
-            cache: "no-store",
-        });
-        const json = await res.json();
-        const id: string | null = json?.data?.customerCart?.id ?? null;
+        // Primary: the customer's existing cart id.
+        const json = await gql(CUSTOMER_CART_ID_QUERY, token, locale);
+        let id: string | null = json?.data?.customerCart?.id ?? null;
+
+        // Fallback: no cart yet → createEmptyCart (idempotent for logged-in customers;
+        // returns the existing/created cart id without wiping items).
+        if (!id) {
+            const created = await gql(CREATE_EMPTY_CART_MUTATION, token, locale);
+            id = created?.data?.createEmptyCart ?? null;
+        }
+
         if (id) cache.set(token, { id, expires: now + CART_ID_TTL_MS });
         return id;
     } catch (err) {
