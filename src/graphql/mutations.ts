@@ -844,3 +844,11 @@ export const KLEVER_MULTISHIPPING_START_MUTATION = /* GraphQL */ `
     }
   }
 `;
+
+// Assign quote items to customer addresses for multi-shipping. input.assignments is a
+// list of { quote_item_id: Int!, customer_address_id: Int!, qty: Float! }. Returns Boolean.
+export const KLEVER_MULTISHIPPING_ASSIGN_MUTATION = /* GraphQL */ `
+  mutation KleverMultishippingAssign($input: KleverMultishippingAssignInput!) {
+    kleverMultishippingAssign(input: $input)
+  }
+`;

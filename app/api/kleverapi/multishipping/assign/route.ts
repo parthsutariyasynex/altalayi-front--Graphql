@@ -1,39 +1,48 @@
-import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_MULTISHIPPING_ASSIGN_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function POST(req: Request) {
+// POST — assign quote items to addresses (GraphQL: kleverMultishippingAssign).
+// Client sends { request: { assignments: [{ quote_item_id, customer_address_id, qty }] } }.
+// Coerces each assignment to the schema types (Int!, Int!, Float!) and returns
+// { success: Boolean }. NOT executed during migration — modifies the quote;
+// schema-validated + build-verified only.
+export async function POST(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+        const body = await request.json();
+        const rawAssignments = body?.request?.assignments ?? body?.assignments ?? [];
+        const assignments = (Array.isArray(rawAssignments) ? rawAssignments : []).map((a: any) => ({
+            quote_item_id: Number(a.quote_item_id),
+            customer_address_id: Number(a.customer_address_id),
+            qty: Number(a.qty),
+        }));
+
+        if (assignments.length === 0) {
+            return NextResponse.json({ message: "assignments are required" }, { status: 400 });
         }
 
-        const body = await req.json();
-        console.log(">>> Multishipping Assign REQUEST:", JSON.stringify(body, null, 2));
-
-        const response = await fetch(`${BASE_URL}/multishipping/assign`, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                Authorization: authHeader,
-                "Content-Type": "application/json",
-                platform: "web",
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_MULTISHIPPING_ASSIGN_MUTATION, variables: { input: { assignments } } }),
+            cache: "no-store",
         });
 
-        const data = await response.json();
-        console.log("<<< Multishipping Assign RESPONSE:", response.status);
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[multishipping/assign] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to assign addresses" }, { status: 400 });
         }
 
-        return NextResponse.json(data);
-    } catch (error) {
-        console.error("Proxy Multishipping Assign Error:", error);
+        return NextResponse.json({ success: json?.data?.kleverMultishippingAssign ?? false });
+    } catch (error: any) {
+        console.error("[multishipping/assign] error:", error.message);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }
