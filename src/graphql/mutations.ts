@@ -458,13 +458,28 @@ export const KLEVER_QUICK_ORDER_CHECKOUT_MUTATION = /* GraphQL */ `
   }
 `;
 
+// Op is kleverQuickOrderClear (kleverQuickOrderClearAll does NOT exist on the schema).
 export const KLEVER_QUICK_ORDER_CLEAR_ALL_MUTATION = /* GraphQL */ `
-  mutation KleverQuickOrderClearAll {
-    kleverQuickOrderClearAll {
-      success
-      message
-      items_count
+  mutation KleverQuickOrderClear {
+    kleverQuickOrderClear {
       grand_total
+      items {
+        image_url
+        item_id
+        name
+        pattern_display
+        price
+        product_id
+        product_url
+        qty
+        row_total
+        size_display
+        sku
+      }
+      items_count
+      message
+      redirect_url
+      success
     }
   }
 `;

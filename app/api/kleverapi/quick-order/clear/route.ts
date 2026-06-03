@@ -1,56 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_QUICK_ORDER_CLEAR_ALL_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// DELETE — clear the quick-order list (GraphQL: kleverQuickOrderClear). Returns
+// { grand_total, items[...], items_count, message, redirect_url, success }.
+// NOT executed during this migration — schema-validated + build-verified only.
 export async function DELETE(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        let token: string | null = null;
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const authHeader = request.headers.get("authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-            token = authHeader.substring(7).replace(/['"]/g, "").trim();
-        }
-
-        if (!token) {
-            token = request.cookies.get("auth-token")?.value?.replace(/['"]/g, "").trim() || null;
-        }
-
-        if (!token || token === "null" || token === "undefined") {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
-
-        // Mageplaza Quick Order Clear API
-        const magentoUrl = `${BASE_URL}/quick-order/clear`;
-
-        console.log("[quick-order/clear] Deleting from:", magentoUrl);
-
-        const res = await fetch(magentoUrl, {
-            method: "DELETE",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_QUICK_ORDER_CLEAR_ALL_MUTATION }),
             cache: "no-store",
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error("[quick-order/clear] Magento error:", res.status, errBody);
-            try {
-                const errData = JSON.parse(errBody);
-                return NextResponse.json({ error: "Clear failed", details: errData }, { status: res.status });
-            } catch {
-                return NextResponse.json({ error: "Clear failed", details: errBody }, { status: res.status });
-            }
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[quick-order/clear] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ success: false, message: json.errors[0]?.message || "Failed to clear" }, { status: 400 });
         }
-
-        const data = await res.json();
-        return NextResponse.json(data);
-
+        return NextResponse.json(json?.data?.kleverQuickOrderClear ?? { success: false });
     } catch (error: any) {
-        console.error("[quick-order/clear] Error:", error.message);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        console.error("[quick-order/clear] error:", error.message);
+        return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 });
     }
 }
