@@ -484,12 +484,22 @@ export const KLEVER_QUICK_ORDER_CLEAR_ALL_MUTATION = /* GraphQL */ `
   }
 `;
 
+// Op is kleverQuickOrderRemove (kleverQuickOrderRemoveItem does NOT exist on the schema).
 export const KLEVER_QUICK_ORDER_REMOVE_ITEM_MUTATION = /* GraphQL */ `
-  mutation KleverQuickOrderRemoveItem($sku: String!) {
-    kleverQuickOrderRemoveItem(sku: $sku) {
+  mutation KleverQuickOrderRemove($sku: String!) {
+    kleverQuickOrderRemove(sku: $sku) {
       success
+      message
       items_count
       grand_total
+      redirect_url
+      items {
+        sku
+        name
+        qty
+        price
+        row_total
+      }
     }
   }
 `;
