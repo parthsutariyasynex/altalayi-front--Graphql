@@ -1,54 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_QUICK_ORDER_CHECKOUT_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// POST — quick-order checkout (GraphQL: kleverQuickOrderCheckout). Body: { items: [{ sku, qty }] }.
+// Returns { success, message, redirect_url, items_count, grand_total }.
+// NOT executed during this migration — schema-validated (return type KleverQuickOrderCartResponse
+// has all selected fields) + build-verified only.
 export async function POST(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        let token: string | null = null;
-
-        const authHeader = request.headers.get("authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-            token = authHeader.substring(7).replace(/['"]/g, "").trim();
-        }
-
-        if (!token) {
-            token = request.cookies.get("auth-token")?.value?.replace(/['"]/g, "").trim() || null;
-        }
-
-        if (!token || token === "null" || token === "undefined") {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
         const body = await request.json();
+        const items = Array.isArray(body?.items) ? body.items : [];
 
-        // Mageplaza Quick Order Checkout API
-        const magentoUrl = `${BASE_URL}/quick-order/checkout`;
-
-        console.log("[quick-order/checkout] Posting to:", magentoUrl);
-
-        const res = await fetch(magentoUrl, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_QUICK_ORDER_CHECKOUT_MUTATION, variables: { items } }),
             cache: "no-store",
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error("[quick-order/checkout] Magento error:", res.status, errBody);
-            return NextResponse.json({ error: "Checkout failed", details: errBody }, { status: res.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[quick-order/checkout] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ success: false, message: json.errors[0]?.message || "Checkout failed" }, { status: 400 });
         }
-
-        const data = await res.json();
-        return NextResponse.json(data);
-
+        return NextResponse.json(json?.data?.kleverQuickOrderCheckout ?? { success: false });
     } catch (error: any) {
-        console.error("[quick-order/checkout] Error:", error.message);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        console.error("[quick-order/checkout] error:", error.message);
+        return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 });
     }
 }
