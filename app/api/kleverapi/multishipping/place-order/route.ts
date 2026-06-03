@@ -1,46 +1,56 @@
-import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_MULTISHIPPING_PLACE_ORDER_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function POST(req: Request) {
+// POST — place a multi-shipping order (GraphQL: kleverMultishippingPlaceOrder).
+// The client payload carries { payment_method, billing_address_id, general_comment,
+// shipping_information[...] }, but the schema op accepts ONLY paymentMethod: String! and
+// optional agreementIds: [Int] — billing address + per-address shipping methods are set
+// by the preceding mutations (billing-address / set-shipping-methods). Returns
+// { order_ids: [Int], increment_ids: [String], success } — the shape the review page reads.
+// NOT executed during migration — places a real order; schema-validated + build-verified only.
+export async function POST(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+        const body = await request.json();
+        const paymentMethod = String(body?.payment_method ?? body?.paymentMethod ?? "");
+        if (!paymentMethod) {
+            return NextResponse.json({ message: "payment_method is required" }, { status: 400 });
         }
+        const rawAgreements = body?.agreementIds ?? body?.agreement_ids ?? null;
+        const agreementIds = Array.isArray(rawAgreements)
+            ? rawAgreements.map((a: any) => Number(a)).filter((n: number) => !Number.isNaN(n))
+            : null;
 
-        const body = await req.json();
-        console.log(">>> Place Multi-Shipping Order REQUEST:", JSON.stringify(body, null, 2));
-
-        const response = await fetch(`${BASE_URL}/multishipping/place-order`, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: authHeader,
-                platform: "web",
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                query: KLEVER_MULTISHIPPING_PLACE_ORDER_MUTATION,
+                variables: { paymentMethod, agreementIds },
+            }),
+            cache: "no-store",
         });
 
-        const responseText = await response.text();
-        console.log("<<< Place Multi-Shipping Order RESPONSE:", response.status, responseText);
-
-        if (!response.ok) {
-            let errorData;
-            try {
-                errorData = JSON.parse(responseText);
-            } catch {
-                errorData = { message: responseText };
-            }
-            return NextResponse.json(errorData, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[multishipping/place-order] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to place order" }, { status: 400 });
         }
 
-        const data = JSON.parse(responseText);
-        return NextResponse.json(data);
-    } catch (error) {
-        console.error("Proxy Multi-Shipping Place Order Error:", error);
+        const r = json?.data?.kleverMultishippingPlaceOrder;
+        return NextResponse.json({
+            order_ids: Array.isArray(r?.order_ids) ? r.order_ids : [],
+            increment_ids: Array.isArray(r?.increment_ids) ? r.increment_ids : [],
+            success: r?.success ?? false,
+        });
+    } catch (error: any) {
+        console.error("[multishipping/place-order] error:", error.message);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

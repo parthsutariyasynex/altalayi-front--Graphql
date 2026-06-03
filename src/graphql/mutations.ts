@@ -870,3 +870,18 @@ export const KLEVER_MULTISHIPPING_SET_BILLING_ADDRESS_MUTATION = /* GraphQL */ `
     kleverMultishippingSetBillingAddress(addressId: $addressId)
   }
 `;
+
+// Place a multi-shipping order. Takes paymentMethod: String! and optional
+// agreementIds: [Int]. Returns { order_ids: [Int], increment_ids: [String], success }.
+// In the GraphQL flow billing address + per-address shipping methods are set by the
+// preceding mutations (kleverMultishippingSetBillingAddress / SetShippingMethods);
+// this op only finalizes with the payment method + agreements.
+export const KLEVER_MULTISHIPPING_PLACE_ORDER_MUTATION = /* GraphQL */ `
+  mutation KleverMultishippingPlaceOrder($paymentMethod: String!, $agreementIds: [Int]) {
+    kleverMultishippingPlaceOrder(paymentMethod: $paymentMethod, agreementIds: $agreementIds) {
+      order_ids
+      increment_ids
+      success
+    }
+  }
+`;
