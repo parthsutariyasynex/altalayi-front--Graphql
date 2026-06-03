@@ -1,6 +1,17 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { getMagentoBaseUrl, isValidLocale, defaultLocale, type Locale } from "@/lib/i18n/config";
+import { isValidLocale, defaultLocale, type Locale } from "@/lib/i18n/config";
+import { GENERATE_CUSTOMER_TOKEN_MUTATION, KLEVER_LOGIN_WITH_OTP_MUTATION } from "@/src/graphql/mutations";
+
+/**
+ * Resolve the Magento GraphQL endpoint (locale is selected via the `Store` header).
+ */
+function getMagentoGraphqlUrl(): string {
+    const domain =
+        process.env.NEXT_PUBLIC_MAGENTO_BASE_URL ||
+        "https://altalayi-demo.btire.com";
+    return `${domain}/graphql`;
+}
 
 /**
  * Decode a Magento JWT token to read its expiry time.
@@ -35,66 +46,73 @@ export const authOptions: NextAuthOptions = {
                 // Read locale from credentials (passed from login form)
                 const credLocale = (credentials as any).locale;
                 const locale: Locale = credLocale && isValidLocale(credLocale) ? credLocale : defaultLocale;
-                const magentoBase = getMagentoBaseUrl(locale);
-                let url = "";
-                let body = {};
-
-                if (isOtp) {
-                    url = `${magentoBase}/login/otp`;
-                    body = {
-                        mobile: (credentials as any).mobile,
-                        otp: (credentials as any).otp,
-                        countryCode: (credentials as any).countryCode
-                    };
-                } else {
-                    url = `${magentoBase}/login/email`;
-                    body = {
-                        email: (credentials as any).email,
-                        password: (credentials as any).password,
-                    };
-                }
-
-                if (!url) {
-                    console.error("Auth URL is not defined");
-                    return null;
-                }
 
                 try {
-                    const headers: any = {
-                        "Content-Type": "application/json"
-                    };
+                    let token: string | null = null;
+
                     if (isOtp) {
-                        headers["platform"] = "web";
-                    }
-
-                    const res = await fetch(url, {
-                        method: "POST",
-                        headers: headers,
-                        body: JSON.stringify(body),
-                    });
-
-                    const data = await res.json();
-
-                    if (res.ok && data) {
-                        const token = isOtp
-                            ? (data.token || (data.customer && data.customer.token))
-                            : (typeof data === 'string' ? data : data.token);
-
-                        if (!token) {
-                            console.error("No token found in successful response.");
-                            return null;
+                        // OTP login via GraphQL kleverLoginWithOtp.
+                        const res = await fetch(getMagentoGraphqlUrl(), {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Store: locale,
+                            },
+                            body: JSON.stringify({
+                                query: KLEVER_LOGIN_WITH_OTP_MUTATION,
+                                variables: {
+                                    mobile: (credentials as any).mobile,
+                                    otp: (credentials as any).otp,
+                                    countryCode: (credentials as any).countryCode,
+                                },
+                            }),
+                        });
+                        const data = await res.json();
+                        if (Array.isArray(data?.errors) && data.errors.length > 0) {
+                            console.error("kleverLoginWithOtp error:", JSON.stringify(data.errors).slice(0, 300));
                         }
-
-                        const trimmedToken = String(token).trim();
-
-                        return {
-                            id: (credentials as any).email || (credentials as any).mobile,
-                            email: (credentials as any).email || "",
-                            name: (credentials as any).email || (credentials as any).mobile,
-                            token: trimmedToken,
-                        };
+                        token = data?.data?.kleverLoginWithOtp?.token ?? null;
+                    } else {
+                        // Email/password login via GraphQL generateCustomerToken.
+                        const res = await fetch(getMagentoGraphqlUrl(), {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                // Select the store view for the requested locale.
+                                Store: locale,
+                            },
+                            body: JSON.stringify({
+                                query: GENERATE_CUSTOMER_TOKEN_MUTATION,
+                                variables: {
+                                    email: (credentials as any).email,
+                                    password: (credentials as any).password,
+                                },
+                            }),
+                        });
+                        const data = await res.json();
+                        if (Array.isArray(data?.errors) && data.errors.length > 0) {
+                            // Invalid credentials or backend error — surface for logs, fail auth.
+                            console.error(
+                                "generateCustomerToken error:",
+                                JSON.stringify(data.errors).slice(0, 300)
+                            );
+                        }
+                        token = data?.data?.generateCustomerToken?.token ?? null;
                     }
-                    return null;
+
+                    if (!token) {
+                        console.error("No token found in successful response.");
+                        return null;
+                    }
+
+                    const trimmedToken = String(token).trim();
+
+                    return {
+                        id: (credentials as any).email || (credentials as any).mobile,
+                        email: (credentials as any).email || "",
+                        name: (credentials as any).email || (credentials as any).mobile,
+                        token: trimmedToken,
+                    };
                 } catch (error) {
                     console.error("Auth Error:", error);
                     return null;
