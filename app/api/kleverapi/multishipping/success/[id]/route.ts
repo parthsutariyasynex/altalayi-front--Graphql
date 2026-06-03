@@ -1,51 +1,47 @@
-import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_MULTISHIPPING_SUCCESS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — multi-shipping order-success summary (GraphQL: kleverMultishippingSuccess).
+// The [id] path segment is the comma-separated order entity ids (e.g. "28675,28676"),
+// passed straight through as orderIds: String!. Returns
+// { message, continue_shopping_url, orders[{ order_id, order_increment_id,
+// shipping_address, order_view_url, grand_total, status }] } — the shape the page reads.
 export async function GET(
-    req: Request,
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const { id: orderId } = await params;
-        const authHeader = req.headers.get("authorization");
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const { id } = await params;
+        const orderIds = decodeURIComponent(id);
 
-        console.log(`>>> Multi-Shipping Success GET REQUEST for Order: ${orderId}`);
-
-        const response = await fetch(`${BASE_URL}/multishipping/success/${orderId}`, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: authHeader as string,
-                platform: "web",
-                accept: "application/json",
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_MULTISHIPPING_SUCCESS_QUERY, variables: { orderIds } }),
             cache: "no-store",
         });
 
-        const responseText = await response.text();
-        console.log(`<<< Multi-Shipping Success RESPONSE for Order ${orderId}:`, response.status, responseText);
-
-        if (!response.ok) {
-            let errorData;
-            try {
-                errorData = JSON.parse(responseText);
-            } catch {
-                errorData = { message: responseText };
-            }
-            return NextResponse.json(errorData, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[multishipping/success] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to load order success" }, { status: 400 });
         }
 
-        const data = JSON.parse(responseText);
-        return NextResponse.json(data);
-    } catch (error) {
-        console.error("Proxy Multi-Shipping Success Error:", error);
+        const r = json?.data?.kleverMultishippingSuccess;
+        return NextResponse.json({
+            message: r?.message ?? "",
+            continue_shopping_url: r?.continue_shopping_url ?? "",
+            orders: Array.isArray(r?.orders) ? r.orders : [],
+        });
+    } catch (error: any) {
+        console.error("[multishipping/success] error:", error.message);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

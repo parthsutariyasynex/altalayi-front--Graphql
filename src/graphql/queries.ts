@@ -1280,3 +1280,24 @@ export const KLEVER_MULTISHIPPING_SHIPPING_METHODS_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+// Multi-shipping order-success summary. orderIds is a comma-separated string of order
+// entity ids (e.g. "28675,28676"). Returns { message, continue_shopping_url,
+// orders[{ order_id, order_increment_id, shipping_address, order_view_url, grand_total,
+// status }] }.
+export const KLEVER_MULTISHIPPING_SUCCESS_QUERY = /* GraphQL */ `
+  query KleverMultishippingSuccess($orderIds: String!) {
+    kleverMultishippingSuccess(orderIds: $orderIds) {
+      message
+      continue_shopping_url
+      orders {
+        order_id
+        order_increment_id
+        shipping_address
+        order_view_url
+        grand_total
+        status
+      }
+    }
+  }
+`;
