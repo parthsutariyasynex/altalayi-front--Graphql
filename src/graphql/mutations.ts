@@ -418,7 +418,7 @@ export const KLEVER_SUBMIT_ENQUIRY_MUTATION = /* GraphQL */ `
 `;
 
 export const KLEVER_QUICK_ORDER_VALIDATE_MUTATION = /* GraphQL */ `
-  mutation KleverQuickOrderValidate($items: [KleverQuickOrderItemRequestInput]!) {
+  mutation KleverQuickOrderValidate($items: [KleverQuickOrderItemInput!]!) {
     kleverQuickOrderValidate(items: $items) {
       grand_total
       items {
@@ -435,7 +435,7 @@ export const KLEVER_QUICK_ORDER_VALIDATE_MUTATION = /* GraphQL */ `
 `;
 
 export const KLEVER_QUICK_ORDER_ADD_TO_CART_MUTATION = /* GraphQL */ `
-  mutation KleverQuickOrderAddToCart($items: [KleverQuickOrderItemRequestInput]!) {
+  mutation KleverQuickOrderAddToCart($items: [KleverQuickOrderItemInput!]!) {
     kleverQuickOrderAddToCart(items: $items) {
       success
       message
@@ -447,7 +447,7 @@ export const KLEVER_QUICK_ORDER_ADD_TO_CART_MUTATION = /* GraphQL */ `
 `;
 
 export const KLEVER_QUICK_ORDER_CHECKOUT_MUTATION = /* GraphQL */ `
-  mutation KleverQuickOrderCheckout($items: [KleverQuickOrderItemRequestInput]!) {
+  mutation KleverQuickOrderCheckout($items: [KleverQuickOrderItemInput!]!) {
     kleverQuickOrderCheckout(items: $items) {
       success
       message

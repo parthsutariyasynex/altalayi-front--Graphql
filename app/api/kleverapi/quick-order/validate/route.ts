@@ -1,54 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_QUICK_ORDER_VALIDATE_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// POST — validate quick-order items (GraphQL: kleverQuickOrderValidate). Non-destructive
+// (validates SKUs/qty, returns totals + per-item validity). Body: { items: [{ sku, qty }] }.
+// Returns { grand_total, items: [{ sku, name, qty, price, row_total, is_valid, error_message }] }.
 export async function POST(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        let token: string | null = null;
-
-        const authHeader = request.headers.get("authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-            token = authHeader.substring(7).replace(/['"]/g, "").trim();
-        }
-
-        if (!token) {
-            token = request.cookies.get("auth-token")?.value?.replace(/['"]/g, "").trim() || null;
-        }
-
-        if (!token || token === "null" || token === "undefined") {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
         const body = await request.json();
+        const items = Array.isArray(body?.items) ? body.items : [];
 
-        // Mageplaza Quick Order Validate API
-        const magentoUrl = `${BASE_URL}/quick-order/validate`;
-
-        console.log("[quick-order/validate] Posting to:", magentoUrl);
-
-        const res = await fetch(magentoUrl, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_QUICK_ORDER_VALIDATE_MUTATION, variables: { items } }),
             cache: "no-store",
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error("[quick-order/validate] Magento error:", res.status, errBody);
-            return NextResponse.json({ error: "Validation failed", details: errBody }, { status: res.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[quick-order/validate] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ error: "Validation failed", details: json.errors }, { status: 502 });
         }
 
-        const data = await res.json();
-        return NextResponse.json(data);
-
+        const r = json?.data?.kleverQuickOrderValidate;
+        return NextResponse.json({
+            grand_total: r?.grand_total ?? 0,
+            items: Array.isArray(r?.items) ? r.items : [],
+        });
     } catch (error: any) {
-        console.error("[quick-order/validate] Error:", error.message);
+        console.error("[quick-order/validate] error:", error.message);
         return NextResponse.json({ error: "Validation failed" }, { status: 500 });
     }
 }
