@@ -1,40 +1,46 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_CHECKOUT_SET_SHIPPING_EXTRAS_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// POST — set shipping extras / pickup details (GraphQL: kleverSetShippingExtras).
+// Maps the camelCase request body to the snake_case KleverShippingExtrasInput.
+// NOT executed during this migration — schema-validated + build-verified only.
 export async function POST(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("Shipping Extras Proxy: Missing or invalid token header:", authHeader);
-            return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
 
-        const body = await req.json();
-        console.log(">>> Shipping Extras REQUEST:", body);
+        const b = await req.json();
+        // Accept both camelCase (frontend) and snake_case keys; emit snake_case input.
+        const input: Record<string, unknown> = {};
+        const set = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== "") input[k] = v; };
+        set("pickup_store", b.pickupStore ?? b.pickup_store);
+        set("pickup_date", b.pickupDate ?? b.pickup_date);
+        set("pickup_time", b.pickupTime ?? b.pickup_time);
+        set("pickup_person_name", b.pickupPersonName ?? b.pickup_person_name);
+        set("pickup_person_id", b.pickupPersonId ?? b.pickup_person_id);
+        set("pickup_mobile_number", b.pickupMobileNumber ?? b.pickup_mobile_number);
+        set("delivery_date", b.deliveryDate ?? b.delivery_date);
+        set("delivery_comment", b.deliveryComment ?? b.delivery_comment);
+        if (b.fee !== undefined && b.fee !== null) input.fee = Number(b.fee);
 
-        const response = await fetch(`${BASE_URL}/checkout/shipping-extras`, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: authHeader,
-                platform: "web",
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_CHECKOUT_SET_SHIPPING_EXTRAS_MUTATION, variables: { input } }),
+            cache: "no-store",
         });
 
-        const data = await response.json();
-        console.log("<<< Shipping Extras RESPONSE:", response.status, data);
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to set shipping extras" }, { status: 400 });
         }
-
-        return NextResponse.json(data);
+        return NextResponse.json({ success: true, result: json?.data?.kleverSetShippingExtras ?? null });
     } catch (error) {
-        console.error("Proxy Shipping Extras Error:", error);
+        console.error("Shipping Extras Error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

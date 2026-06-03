@@ -1,41 +1,46 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_CHECKOUT_PICKUP_TIME_SLOTS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — pickup time slots (GraphQL: kleverPickupTimeSlots(storeId, date) → {time, available}).
+// Mapped to the consumer's expected { time, label, enabled } shape (label = time;
+// enabled derived from `available`, defaulting to true when null).
 export async function GET(
     req: Request,
-    { params }: { params: { storeId: string; date: string } }
+    { params }: { params: Promise<{ storeId: string; date: string }> }
 ) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
         const { storeId, date } = await params;
 
-        const response = await fetch(`${BASE_URL}/checkout/pickup-time-slots/${storeId}/${date}`, {
-            method: "GET",
-            headers: {
-                Authorization: authHeader,
-                "Content-Type": "application/json",
-                platform: "web",
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                query: KLEVER_CHECKOUT_PICKUP_TIME_SLOTS_QUERY,
+                variables: { storeId: parseInt(storeId, 10), date },
+            }),
             cache: "no-store",
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("Pickup Time Slots API error:", response.status, data);
-            return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ message: "Magento GraphQL error", details: json.errors }, { status: 502 });
         }
-
-        return NextResponse.json(data);
+        const slots = Array.isArray(json?.data?.kleverPickupTimeSlots) ? json.data.kleverPickupTimeSlots : [];
+        const mapped = slots.map((s: any) => ({
+            time: s.time,
+            label: s.time,
+            enabled: s.available == null ? true : Boolean(s.available),
+        }));
+        return NextResponse.json(mapped);
     } catch (error) {
-        console.error("Proxy Pickup Time Slots Error:", error);
+        console.error("Pickup Time Slots Error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

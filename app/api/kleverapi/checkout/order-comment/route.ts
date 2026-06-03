@@ -1,77 +1,58 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_CHECKOUT_ORDER_COMMENT_QUERY } from "@/src/graphql/queries";
+import { KLEVER_CHECKOUT_SET_ORDER_COMMENT_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — order comment (GraphQL: kleverGetOrderComment → scalar string/null).
+// Returns { comment } to match the route's prior shape (consumer reads data.comment).
 export async function GET(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const response = await fetch(`${BASE_URL}/checkout/order-comment`, {
-            method: "GET",
-            headers: {
-                Authorization: authHeader,
-                "Content-Type": "application/json",
-                platform: "web",
-                accept: "application/json",
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_CHECKOUT_ORDER_COMMENT_QUERY }),
             cache: "no-store",
         });
 
-        const responseText = await response.text();
-
-        if (!response.ok) {
-            console.error("Order Comment GET error:", response.status, responseText);
-            return NextResponse.json({ error: "Failed to get order comment", details: responseText }, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ error: "Failed to get order comment", details: json.errors }, { status: 502 });
         }
-
-        try {
-            const data = JSON.parse(responseText);
-            return NextResponse.json(data);
-        } catch (e) {
-            // If it's a string from Magento but not valid JSON (standard for some endpoints)
-            return NextResponse.json({ comment: responseText });
-        }
+        return NextResponse.json({ comment: json?.data?.kleverGetOrderComment ?? "" });
     } catch (error: any) {
-        console.error("Proxy GET Order Comment Error:", error);
+        console.error("Order Comment GET Error:", error);
         return NextResponse.json({ message: "Internal server error", details: error.message }, { status: 500 });
     }
 }
 
+// POST — set order comment (GraphQL: kleverSetOrderComment). Caller checks res.ok.
 export async function POST(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const body = await req.json();
+        const { comment } = await req.json();
 
-        const response = await fetch(`${BASE_URL}/checkout/order-comment`, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: authHeader,
-                platform: "web",
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_CHECKOUT_SET_ORDER_COMMENT_MUTATION, variables: { comment } }),
+            cache: "no-store",
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("Order Comment POST error:", response.status, data);
-            return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to set order comment" }, { status: 400 });
         }
-
-        return NextResponse.json(data);
+        return NextResponse.json({ success: true, result: json?.data?.kleverSetOrderComment ?? null });
     } catch (error) {
-        console.error("Proxy POST Order Comment Error:", error);
+        console.error("Order Comment POST Error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

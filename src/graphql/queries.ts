@@ -1127,15 +1127,17 @@ export const KLEVER_CHECKOUT_PO_NUMBER_QUERY = /* GraphQL */ `
   }
 `;
 
+// Returns the order comment string (or null).
 export const KLEVER_CHECKOUT_ORDER_COMMENT_QUERY = /* GraphQL */ `
-  query KleverCheckoutOrderComment {
-    kleverCheckoutOrderComment
+  query KleverGetOrderComment {
+    kleverGetOrderComment
   }
 `;
 
+// Returns an array of uploaded PO file objects (scalar JSON list).
 export const KLEVER_CHECKOUT_PO_FILES_QUERY = /* GraphQL */ `
-  query KleverCheckoutPoFiles {
-    kleverCheckoutPoFiles
+  query KleverGetPoFiles {
+    kleverGetPoFiles
   }
 `;
 
@@ -1154,12 +1156,28 @@ export const KLEVER_CHECKOUT_SHIPPING_EXTRAS_QUERY = /* GraphQL */ `
   }
 `;
 
+// Catalog op is kleverPickupTimeSlots → { time, available } (not time/label/enabled).
 export const KLEVER_CHECKOUT_PICKUP_TIME_SLOTS_QUERY = /* GraphQL */ `
-  query KleverCheckoutPickupTimeSlots($storeId: Int!, $date: String!) {
-    kleverCheckoutPickupTimeSlots(storeId: $storeId, date: $date) {
+  query KleverPickupTimeSlots($storeId: Int!, $date: String!) {
+    kleverPickupTimeSlots(storeId: $storeId, date: $date) {
       time
-      label
-      enabled
+      available
+    }
+  }
+`;
+
+// Catalog op kleverPickupStores → store_id/name/address/city/country/phone/lat/long.
+export const KLEVER_PICKUP_STORES_QUERY = /* GraphQL */ `
+  query KleverPickupStores {
+    kleverPickupStores {
+      store_id
+      name
+      address
+      city
+      country
+      phone
+      latitude
+      longitude
     }
   }
 `;

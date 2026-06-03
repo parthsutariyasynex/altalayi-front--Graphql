@@ -635,50 +635,33 @@ export const PLACE_ORDER_MUTATION = /* GraphQL */ `
 `;
 
 export const KLEVER_CHECKOUT_SET_PO_NUMBER_MUTATION = /* GraphQL */ `
-  mutation KleverCheckoutSetPoNumber($poNumber: String!) {
-    kleverCheckoutSetPoNumber(poNumber: $poNumber)
+  mutation KleverSetPoNumber($poNumber: String!) {
+    kleverSetPoNumber(poNumber: $poNumber)
   }
 `;
 
 export const KLEVER_CHECKOUT_SET_ORDER_COMMENT_MUTATION = /* GraphQL */ `
-  mutation KleverCheckoutSetOrderComment($comment: String!) {
-    kleverCheckoutSetOrderComment(comment: $comment)
+  mutation KleverSetOrderComment($comment: String!) {
+    kleverSetOrderComment(comment: $comment)
   }
 `;
 
 export const KLEVER_CHECKOUT_PO_UPLOAD_MUTATION = /* GraphQL */ `
-  mutation KleverCheckoutPoUpload($fileName: String!, $fileContent: String!, $type: String) {
-    kleverCheckoutPoUpload(fileName: $fileName, fileContent: $fileContent, type: $type)
+  mutation KleverUploadPoFile($fileName: String!, $fileContent: String!, $type: String) {
+    kleverUploadPoFile(fileName: $fileName, fileContent: $fileContent, type: $type)
   }
 `;
 
 export const KLEVER_CHECKOUT_PO_REMOVE_FILE_MUTATION = /* GraphQL */ `
-  mutation KleverCheckoutPoRemoveFile($fileName: String!) {
-    kleverCheckoutPoRemoveFile(fileName: $fileName)
+  mutation KleverRemovePoFile($fileName: String!) {
+    kleverRemovePoFile(fileName: $fileName)
   }
 `;
 
+// Catalog op takes a single KleverShippingExtrasInput object (snake_case fields).
 export const KLEVER_CHECKOUT_SET_SHIPPING_EXTRAS_MUTATION = /* GraphQL */ `
-  mutation KleverCheckoutSetShippingExtras(
-    $deliveryDate: String
-    $deliveryComment: String
-    $pickupStore: String
-    $pickupDate: String
-    $pickupTime: String
-    $pickupPersonName: String
-    $pickupMobileNumber: String
-    $fee: Int
-  ) {
-    kleverCheckoutSetShippingExtras(
-      deliveryDate: $deliveryDate
-      deliveryComment: $deliveryComment
-      pickupStore: $pickupStore
-      pickupDate: $pickupDate
-      pickupTime: $pickupTime
-      pickupPersonName: $pickupPersonName
-      pickupMobileNumber: $pickupMobileNumber
-      fee: $fee
-    )
+  mutation KleverSetShippingExtras($input: KleverShippingExtrasInput!) {
+    kleverSetShippingExtras(input: $input)
   }
 `;
 

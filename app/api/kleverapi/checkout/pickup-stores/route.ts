@@ -1,41 +1,34 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_PICKUP_STORES_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — pickup stores (GraphQL: kleverPickupStores). Returns the store array; the
+// useCheckout consumer maps store_id→id, name, address.
+// DEVIATION: kleverPickupStores does not expose `email` (REST did) — Store.email
+// will be empty. gps_location was already absent under REST (it had lat/long).
 export async function GET(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("[Pickup Stores Proxy] Missing or invalid token format:", authHeader);
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const url = `${BASE_URL}/checkout/pickup-stores`;
-        console.log("[Pickup Stores Proxy] Fetching from Magento:", url);
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "Authorization": authHeader,
-                "Content-Type": "application/json",
-                "platform": "web",
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_PICKUP_STORES_QUERY }),
             cache: "no-store",
         });
 
-        const data = await response.json();
-        console.log("[Pickup Stores Proxy] Magento Response Status:", response.status);
-
-        if (!response.ok) {
-            console.error("[Pickup Stores Proxy] Magento API error:", response.status, JSON.stringify(data).substring(0, 500));
-            return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[pickup-stores] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: "Magento GraphQL error", details: json.errors }, { status: 502 });
         }
-
-        return NextResponse.json(data);
+        return NextResponse.json(Array.isArray(json?.data?.kleverPickupStores) ? json.data.kleverPickupStores : []);
     } catch (error) {
-        console.error("Proxy Pickup Stores Error:", error);
+        console.error("Pickup Stores Error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

@@ -1,52 +1,36 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_CHECKOUT_PO_REMOVE_FILE_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// DELETE — remove a PO file (GraphQL: kleverRemovePoFile). Caller checks res.ok.
+// NOT executed during this migration — schema-validated + build-verified only.
 export async function DELETE(
     req: Request,
     { params }: { params: Promise<{ filename: string }> }
 ) {
     try {
-        const BASE_URL = getBaseUrl(req);
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
         const { filename } = await params;
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
 
-        console.log(">>> PO Delete REQUEST:", filename);
-
-        const response = await fetch(`${BASE_URL}/checkout/po-upload/${encodeURIComponent(filename)}`, {
-            method: "DELETE",
-            headers: {
-                Authorization: authHeader,
-                platform: "web",
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_CHECKOUT_PO_REMOVE_FILE_MUTATION, variables: { fileName: filename } }),
+            cache: "no-store",
         });
 
-        const contentType = response.headers.get("content-type");
-        let data;
-
-        if (contentType && contentType.includes("application/json")) {
-            data = await response.json();
-        } else {
-            const text = await response.text();
-            data = { message: text || "Non-JSON response from server" };
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to remove file" }, { status: 400 });
         }
-
-        console.log("<<< PO Delete RESPONSE Status:", response.status, data);
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
-        }
-
-        return NextResponse.json(data);
+        return NextResponse.json({ success: true, result: json?.data?.kleverRemovePoFile ?? null });
     } catch (error) {
-        console.error("Proxy PO Delete Error:", error);
-        return NextResponse.json(
-            { message: error instanceof Error ? error.message : "Internal server error" },
-            { status: 500 }
-        );
+        console.error("PO Delete Error:", error);
+        return NextResponse.json({ message: error instanceof Error ? error.message : "Internal server error" }, { status: 500 });
     }
 }

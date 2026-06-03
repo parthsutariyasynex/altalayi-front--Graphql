@@ -1,39 +1,32 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_CHECKOUT_SET_PO_NUMBER_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// POST — set PO number (GraphQL: kleverSetPoNumber). Caller checks res.ok.
 export async function POST(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const body = await req.json();
-        console.log(">>> PO Number REQUEST:", body);
+        const { poNumber } = await req.json();
 
-        const response = await fetch(`${BASE_URL}/checkout/po-number`, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: authHeader,
-                platform: "web",
-            },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_CHECKOUT_SET_PO_NUMBER_MUTATION, variables: { poNumber } }),
+            cache: "no-store",
         });
 
-        const data = await response.json();
-        console.log("<<< PO Number RESPONSE:", response.status);
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to set PO number" }, { status: 400 });
         }
-
-        return NextResponse.json(data);
+        return NextResponse.json({ success: true, result: json?.data?.kleverSetPoNumber ?? null });
     } catch (error) {
-        console.error("Proxy PO Number Error:", error);
+        console.error("PO Number Error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

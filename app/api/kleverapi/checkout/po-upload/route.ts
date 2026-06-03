@@ -1,79 +1,67 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_CHECKOUT_PO_FILES_QUERY } from "@/src/graphql/queries";
+import { KLEVER_CHECKOUT_PO_UPLOAD_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(req)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — list uploaded PO files (GraphQL: kleverGetPoFiles → array). Returns the array.
 export async function GET(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("PO Upload Proxy: Missing or invalid token header:", authHeader);
-            return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
 
-        const response = await fetch(`${BASE_URL}/checkout/po-upload`, {
-            method: "GET",
-            headers: {
-                Authorization: authHeader,
-                platform: "web",
-                accept: "application/json",
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_CHECKOUT_PO_FILES_QUERY }),
             cache: "no-store",
         });
 
-        const responseText = await response.text();
-
-        if (!response.ok) {
-            console.error("PO Upload GET error:", response.status, responseText);
-            return NextResponse.json({ error: "Failed to get PO upload", details: responseText }, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ error: "Failed to get PO files", details: json.errors }, { status: 502 });
         }
-
-        try {
-            const data = JSON.parse(responseText);
-            return NextResponse.json(data);
-        } catch (e) {
-            // Return empty data if not valid JSON
-            return NextResponse.json([]);
-        }
+        return NextResponse.json(json?.data?.kleverGetPoFiles ?? []);
     } catch (error: any) {
-        console.error("Proxy PO Upload GET Error:", error);
+        console.error("PO Upload GET Error:", error);
         return NextResponse.json({ message: "Internal server error", details: error.message }, { status: 500 });
     }
 }
 
+// POST — upload a PO file (GraphQL: kleverUploadPoFile). The multipart file is read
+// and base64-encoded into the mutation (fileName, fileContent, type).
+// NOT executed during this migration — schema-validated + build-verified only.
 export async function POST(req: Request) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("PO Upload Proxy: Missing or invalid token header:", authHeader);
-            return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
-        }
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
 
         const formData = await req.formData();
-        console.log(">>> PO Upload REQUEST: Multipart Data");
+        const file = (formData.get("file") || formData.get("po_file") || [...formData.values()].find((v) => v instanceof File)) as File | null;
+        if (!file) return NextResponse.json({ message: "No file provided" }, { status: 400 });
 
-        const response = await fetch(`${BASE_URL}/checkout/po-upload`, {
+        const fileContent = Buffer.from(await file.arrayBuffer()).toString("base64");
+        const type = (formData.get("type") as string) || "po";
+
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: {
-                Authorization: authHeader,
-                platform: "web",
-                // Do not set Content-Type here, it will be set automatically with boundary for FormData
-            },
-            body: formData,
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                query: KLEVER_CHECKOUT_PO_UPLOAD_MUTATION,
+                variables: { fileName: file.name, fileContent, type },
+            }),
+            cache: "no-store",
         });
 
-        const data = await response.json();
-        console.log("<<< PO Upload RESPONSE:", response.status);
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ message: json.errors[0]?.message || "Upload failed" }, { status: 400 });
         }
-
-        return NextResponse.json(data);
+        return NextResponse.json({ success: true, result: json?.data?.kleverUploadPoFile ?? null });
     } catch (error) {
-        console.error("Proxy PO Upload Error:", error);
+        console.error("PO Upload POST Error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

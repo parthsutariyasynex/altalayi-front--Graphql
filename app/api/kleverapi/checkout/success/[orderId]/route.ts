@@ -1,53 +1,37 @@
 import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_CHECKOUT_SUCCESS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — order success details (GraphQL: kleverCheckoutSuccess(orderId)).
+// Returns { order_id, order_increment_id, message, continue_shopping_url, order_view_url }.
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ orderId: string }> }
 ) {
     try {
-        const BASE_URL = getBaseUrl(req);
+        const token = await getRequestToken(req);
+        if (!token) return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
+
         const { orderId } = await params;
-        const authHeader = req.headers.get("authorization");
+        if (!orderId) return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
 
-        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
-            console.error("Checkout Success Proxy: Missing or invalid token header:", authHeader);
-            return NextResponse.json({ message: "Unauthorized: Invalid token format" }, { status: 401 });
-        }
-
-        if (!orderId) {
-            return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
-        }
-
-        const response = await fetch(`${BASE_URL}/checkout/success/${orderId}`, {
-            method: "GET",
-            headers: {
-                Authorization: authHeader as string,
-                "Content-Type": "application/json",
-                platform: "web",
-                accept: "application/json",
-            },
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(req), Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ query: KLEVER_CHECKOUT_SUCCESS_QUERY, variables: { orderId: parseInt(orderId, 10) } }),
             cache: "no-store",
         });
 
-        const responseText = await response.text();
-
-        if (!response.ok) {
-            console.error("Checkout Success API error:", response.status, responseText);
-            return NextResponse.json({ error: "Failed to get success data", details: responseText }, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            return NextResponse.json({ error: "Failed to get success data", details: json.errors }, { status: 502 });
         }
-
-        try {
-            const data = JSON.parse(responseText);
-            return NextResponse.json(data);
-        } catch (e) {
-            console.error("Checkout Success JSON Parse Error. Raw:", responseText);
-            return NextResponse.json({ error: "Invalid JSON from Magento", raw: responseText }, { status: 500 });
-        }
+        return NextResponse.json(json?.data?.kleverCheckoutSuccess ?? {});
     } catch (error: any) {
-        console.error("Proxy GET Checkout Success Error:", error);
+        console.error("Checkout Success Error:", error);
         return NextResponse.json({ message: "Internal server error", details: error.message }, { status: 500 });
     }
 }
