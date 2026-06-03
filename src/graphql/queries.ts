@@ -1248,6 +1248,7 @@ export const KLEVER_MENU_ITEMS_QUERY = /* GraphQL */ `
   }
 `;
 
+// ─── Multi-shipping (read queries) ───
 // Multi-shipping shipping methods — per quote address, the available carrier/method
 // rates. Returns { addresses[{ quote_address_id, customer_address_id, street, city,
 // region, postcode, country_id, methods[{ carrier_code, method_code, carrier_title,
@@ -1284,7 +1285,7 @@ export const KLEVER_MULTISHIPPING_SHIPPING_METHODS_QUERY = /* GraphQL */ `
 // Multi-shipping order-success summary. orderIds is a comma-separated string of order
 // entity ids (e.g. "28675,28676"). Returns { message, continue_shopping_url,
 // orders[{ order_id, order_increment_id, shipping_address, order_view_url, grand_total,
-// status }] }.
+// status }] }. (multishipping read query)
 export const KLEVER_MULTISHIPPING_SUCCESS_QUERY = /* GraphQL */ `
   query KleverMultishippingSuccess($orderIds: String!) {
     kleverMultishippingSuccess(orderIds: $orderIds) {
