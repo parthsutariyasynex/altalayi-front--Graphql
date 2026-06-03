@@ -1247,3 +1247,36 @@ export const KLEVER_MENU_ITEMS_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+// Multi-shipping shipping methods — per quote address, the available carrier/method
+// rates. Returns { addresses[{ quote_address_id, customer_address_id, street, city,
+// region, postcode, country_id, methods[{ carrier_code, method_code, carrier_title,
+// method_title, amount, base_amount, available, error_message, price_excl_tax,
+// price_incl_tax }] }] }.
+export const KLEVER_MULTISHIPPING_SHIPPING_METHODS_QUERY = /* GraphQL */ `
+  query KleverMultishippingShippingMethods {
+    kleverMultishippingShippingMethods {
+      addresses {
+        quote_address_id
+        customer_address_id
+        street
+        city
+        region
+        postcode
+        country_id
+        methods {
+          carrier_code
+          method_code
+          carrier_title
+          method_title
+          amount
+          base_amount
+          available
+          error_message
+          price_excl_tax
+          price_incl_tax
+        }
+      }
+    }
+  }
+`;
