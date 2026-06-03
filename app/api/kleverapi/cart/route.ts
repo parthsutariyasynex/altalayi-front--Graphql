@@ -10,6 +10,15 @@ function uidToItemId(uid: string): number {
     try { return Number(Buffer.from(uid, "base64").toString("utf-8")) || 0; } catch { return 0; }
 }
 
+// GraphQL product image URLs point at the Magento image CACHE path
+// (…/media/catalog/product/cache/<hash>/…) which 404s when the resized variant
+// was never generated. Strip the cache segment to the direct media path (the URL
+// REST returned), which resolves correctly.
+function directImageUrl(url: string | undefined): string {
+    if (!url) return "/images/tyre-sample.png";
+    return url.replace(/\/media\/catalog\/product\/cache\/[^/]+\//, "/media/catalog/product/");
+}
+
 // size_display / pattern_display have NO GraphQL field anywhere in the schema, so we
 // reconstruct them (best-effort) from the product name to keep the cart 100% GraphQL.
 // e.g. "Bridgestone T 215/70 R15C R624Z 109S TL 2025" → size "215/70 R15C 2025", pattern "R624Z TL".
@@ -63,7 +72,7 @@ export async function GET(req: Request) {
                 name,
                 price: Number(it.prices?.price?.value ?? 0),
                 qty: Number(it.quantity ?? 0),
-                image_url: it.product?.thumbnail?.url || "/images/tyre-sample.png",
+                image_url: directImageUrl(it.product?.thumbnail?.url),
                 product_url: url_key ? `/products/${url_key}` : undefined,
                 size_display,
                 pattern_display,
