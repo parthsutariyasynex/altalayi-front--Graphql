@@ -569,6 +569,28 @@ export const CUSTOMER_CART_QUERY = /* GraphQL */ `
   }
 `;
 
+// Customer addresses (native). country_code is mapped to country_id in the route.
+export const CUSTOMER_ADDRESSES_QUERY = /* GraphQL */ `
+  query CustomerAddresses {
+    customer {
+      addresses {
+        id
+        firstname
+        lastname
+        company
+        street
+        city
+        region { region region_code region_id }
+        postcode
+        country_code
+        telephone
+        default_billing
+        default_shipping
+      }
+    }
+  }
+`;
+
 export const CUSTOMER_CART_ID_QUERY = /* GraphQL */ `
   query CustomerCartId {
     customerCart {
