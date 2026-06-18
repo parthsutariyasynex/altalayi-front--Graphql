@@ -33,6 +33,7 @@ type Address = {
     city?: string;
     postcode?: string;
     country_id?: string;
+    country_code?: string;
     telephone?: string;
     company?: string;
 };
@@ -67,6 +68,9 @@ export default function MyAccountPage() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    // The customer reducer never sets its own loading/error — so track a failed profile
+    // fetch here to render an error fallback (with retry) instead of a blank page.
+    const [fetchError, setFetchError] = useState(false);
 
     const fetchTargets = async (year: string) => {
         try {
@@ -101,17 +105,32 @@ export default function MyAccountPage() {
         }
 
         if (status === "authenticated" && token) {
-            dispatch(fetchCustomerInfo());
+            setFetchError(false);
+            dispatch(fetchCustomerInfo((err: any) => { if (err) setFetchError(true); }));
             fetchOverview();
             fetchTargets(selectedYear);
         }
     }, [status, token, dispatch, router, selectedYear]);
 
+    // Re-attempt loading the account profile after an error (used by the error fallback).
+    const retryLoad = () => {
+        setFetchError(false);
+        dispatch(fetchCustomerInfo((err: any) => { if (err) setFetchError(true); }));
+        fetchOverview();
+        fetchTargets(selectedYear);
+    };
+
     const getOverviewAttr = (key: string, fallback: string = "N/A") => {
         return businessOverview?.[key] || fallback;
     };
 
-    if (loading) {
+    // Full-page skeleton while the session is still resolving, OR while we're authenticated
+    // and the profile hasn't arrived yet (and hasn't errored). NEVER return blank/null:
+    // the redux `loading` flag is never set by the reducer, so the loading state is derived
+    // from session status + whether we actually have data. Unauthenticated users are being
+    // redirected to login by the effect above — they see the skeleton briefly, not a blank.
+    const showSkeleton = loading || status === "loading" || (!customer && !fetchError);
+    if (showSkeleton) {
         return (
             <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
                 <div className="flex flex-col lg:flex-row flex-1 w-full">
@@ -124,7 +143,31 @@ export default function MyAccountPage() {
         );
     }
 
-    if (!customer) return null;
+    // Fetch failed and we have no profile data → proper error fallback with retry (never blank).
+    if (!customer) {
+        return (
+            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
+                <div className="flex flex-col lg:flex-row flex-1 w-full">
+                    <Sidebar />
+                    <main className="flex-1 w-full px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-10">
+                        <h1 className="text-[20px] sm:text-[22px] md:text-[26px] font-black text-black mb-6 md:mb-10 uppercase tracking-wide">
+                            {t("account.title")}
+                        </h1>
+                        <div className="border border-gray-300 bg-white shadow-sm rounded-none p-8 md:p-12 text-center max-w-xl">
+                            <p className="text-[15px] font-bold text-black mb-2 uppercase">{t("common.error")}</p>
+                            <p className="text-[13px] text-gray-600 mb-6">{t("m.sorry-there-has-been-an-error-processing-your-request-please-try-again-later")}</p>
+                            <button
+                                onClick={retryLoad}
+                                className="bg-[#F5B21B] hover:bg-[#e0a116] text-black text-[12px] font-bold px-6 py-2.5 uppercase transition-all rounded-sm"
+                            >
+                                {t("common.tryAgain")}
+                            </button>
+                        </div>
+                    </main>
+                </div>
+            </div>
+        );
+    }
 
     const getAttr = (code: string, fallback: string = "N/A") => {
         if ((customer as any)[code] !== undefined) return (customer as any)[code];
@@ -151,25 +194,32 @@ export default function MyAccountPage() {
     const defaultBilling = addresses?.find((a: Address) => a.default_billing);
     const defaultShipping = addresses?.find((a: Address) => a.default_shipping);
 
-    const customerMobile = getAttr("mobile") !== "N/A"
-        ? getAttr("mobile")
-        : getAttr("mobile_number") !== "N/A"
-            ? getAttr("mobile_number")
-            : defaultBilling?.telephone || defaultShipping?.telephone || addresses?.[0]?.telephone || "N/A";
+    // Address priority: default billing → default shipping → first address.
+    const selectedAddress = defaultBilling || defaultShipping || addresses?.[0];
+    // Resolve a field across that priority so an empty value on the primary falls through
+    // (e.g. the default address has no company → use the next address that does).
+    const pickAddr = (field: keyof Address): string | undefined =>
+        (defaultBilling?.[field] as string | undefined)
+        || (defaultShipping?.[field] as string | undefined)
+        || (addresses?.[0]?.[field] as string | undefined)
+        || undefined;
 
-    const customerCompany = getAttr("company_name") !== "N/A"
-        ? getAttr("company_name")
-        : defaultBilling?.company || defaultShipping?.company || addresses?.[0]?.company || "N/A";
+    // All mapped from native GraphQL fields only — no REST, no hardcoded/fake values.
+    const customerMobile = pickAddr("telephone") || "N/A";                 // address.telephone
+    const customerCompany = pickAddr("company") || "N/A";                  // address.company
+    const addrCity = pickAddr("city");
+    const addrCountry = pickAddr("country_code") || pickAddr("country_id") || "SA";
+    const customerLocation = addrCity ? `${addrCity} ,${addrCountry}` : "N/A"; // city + country_code
+    // Customer Code & Industry: native GraphQL does NOT expose these → stay N/A (no fake data).
+    const customerCode = getAttr("customer_code");
+    const customerIndustry = getAttr("industry");
 
-    const customerLocation = getAttr("location") !== "N/A"
-        ? getAttr("location")
-        : getAttr("customer_location") !== "N/A"
-            ? getAttr("customer_location")
-            : defaultBilling?.city
-                ? `${defaultBilling.city} ,${defaultBilling.country_id || "SA"}`
-                : defaultShipping?.city
-                    ? `${defaultShipping.city} ,${defaultShipping.country_id || "SA"}`
-                    : "N/A";
+    // TEMP: trace the GraphQL-derived address mapping (remove after verifying).
+    console.log('[MY ACCOUNT] selected address:', selectedAddress);
+    console.log('[MY ACCOUNT] company:', selectedAddress?.company, '→ mapped:', customerCompany);
+    console.log('[MY ACCOUNT] telephone:', selectedAddress?.telephone, '→ mapped mobile:', customerMobile);
+    console.log('[MY ACCOUNT] city:', selectedAddress?.city);
+    console.log('[MY ACCOUNT] country:', selectedAddress?.country_code);
 
 
     return (
@@ -212,8 +262,8 @@ export default function MyAccountPage() {
                                             <p>{t("account.email")}: {(customer as any).email}</p>
                                             <p>{t("account.customerMobile")}: {customerMobile}</p>
                                             <p>{t("account.companyName")}: {customerCompany}</p>
-                                            <p>{t("account.customerCode")}: {getAttr("customer_code")}</p>
-                                            <p>{t("m.industry")}: {getAttr("industry") !== "N/A" ? getAttr("industry") : "N/A"}</p>
+                                            <p>{t("account.customerCode")}: {customerCode}</p>
+                                            <p>{t("m.industry")}: {customerIndustry}</p>
                                             <p>{t("m.location")}: {customerLocation}</p>
                                             <p>{t("account.contactInformation")}: {(customer as any).email} ,{customerMobile}</p>
 
@@ -278,6 +328,11 @@ export default function MyAccountPage() {
                                                 <p>{t("m.sales-targets")}: {targets.sales_target || "0"}</p>
                                                 <p>{t("m.achievements")}: {targets.achievement || "0"}</p>
                                                 <p>{t("m.incentive")}: SAR {formatCurrency(targets.incentive)}</p>
+                                                {/* Customer Incentive — reads targets.customer_incentive. The GraphQL field
+                                                    does not exist yet (KLEVER_TARGETS_ACHIEVEMENTS_QUERY can't select it without
+                                                    breaking the query); shows 0.00 until the backend adds `customer_incentive`,
+                                                    then add that field to the query and this auto-populates. */}
+                                                <p>{t("account.customerIncentive")}: SAR {formatCurrency(targets.customer_incentive)}</p>
                                                 {targets.remarks && <p className="text-[#F5B21B] font-bold">{t("m.comment")}: {targets.remarks}</p>}
                                             </>
                                         ) : (
@@ -321,10 +376,10 @@ export default function MyAccountPage() {
                                             {defaultBilling ? (
                                                 <div className="text-[13px] text-gray-800 leading-relaxed space-y-1 font-normal flex-1">
                                                     <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultBilling.firstname} {defaultBilling.lastname}</p>
-                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultBilling.company}</p>
+                                                    {defaultBilling.company && <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultBilling.company}</p>}
                                                     {defaultBilling.street?.map((s: string, i: number) => <p key={i} dir="ltr" style={{ unicodeBidi: "isolate" }}>{s}</p>)}
                                                     <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultBilling.city}, {defaultBilling.postcode}</p>
-                                                    <p>{defaultBilling.country_id === 'SA' ? t("data.Saudi Arabia") : defaultBilling.country_id}</p>
+                                                    {(() => { const c = defaultBilling.country_code || defaultBilling.country_id; return c ? <p>{c === 'SA' ? t("data.Saudi Arabia") : c}</p> : null; })()}
                                                     <p dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {defaultBilling.telephone}</p>
                                                 </div>
                                             ) : (
@@ -342,10 +397,10 @@ export default function MyAccountPage() {
                                             {defaultShipping ? (
                                                 <div className="text-[13px] text-gray-800 leading-relaxed space-y-1 font-normal flex-1">
                                                     <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultShipping.firstname} {defaultShipping.lastname}</p>
-                                                    <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultShipping.company}</p>
+                                                    {defaultShipping.company && <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultShipping.company}</p>}
                                                     {defaultShipping.street?.map((s: string, i: number) => <p key={i} dir="ltr" style={{ unicodeBidi: "isolate" }}>{s}</p>)}
                                                     <p dir="ltr" style={{ unicodeBidi: "isolate" }}>{defaultShipping.city}, {defaultShipping.postcode}</p>
-                                                    <p>{defaultShipping.country_id === 'SA' ? t("data.Saudi Arabia") : defaultShipping.country_id}</p>
+                                                    {(() => { const c = defaultShipping.country_code || defaultShipping.country_id; return c ? <p>{c === 'SA' ? t("data.Saudi Arabia") : c}</p> : null; })()}
                                                     <p dir="ltr" style={{ unicodeBidi: "isolate" }}>T: {defaultShipping.telephone}</p>
                                                 </div>
                                             ) : (

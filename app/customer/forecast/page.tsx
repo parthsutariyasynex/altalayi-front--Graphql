@@ -313,9 +313,6 @@ export default function MyForecastPage() {
                                         >
                                             {file.file_name || file.filename || file.name || t("m.name")}
                                         </button>
-                                        {downloadingId !== null && downloadingId === fileId && (
-                                            <div className="animate-spin h-3 w-3 border-b-2 border-[#f4b400] rounded-full flex-shrink-0 mt-1"></div>
-                                        )}
                                     </div>
                                     <span className="text-[11px] text-gray-400 font-medium mt-1 block">
                                         {getProperDate(file)}
@@ -331,9 +328,6 @@ export default function MyForecastPage() {
                                         >
                                             {file.file_name || file.filename || file.name || t("m.name")}
                                         </button>
-                                        {downloadingId !== null && downloadingId === fileId && (
-                                            <div className="animate-spin h-3 w-3 border-b-2 border-[#f4b400] rounded-full"></div>
-                                        )}
                                     </div>
                                     <span className={`text-[13px] text-gray-700 font-medium text-center ${isRtl ? 'border-r' : 'border-l'} border-gray-50`}>
                                         {getProperDate(file)}

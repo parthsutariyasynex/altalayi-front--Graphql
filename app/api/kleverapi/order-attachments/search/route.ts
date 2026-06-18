@@ -1,63 +1,58 @@
-import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_ORDER_UPLOAD_SEARCH_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function GET(request: Request) {
+// GET — order-upload attachments search (GraphQL: kleverOrderUploadSearch).
+// Replaces REST /orderupload/search. Maps the legacy query params: order_id →
+// orderIncrementId, document_type → documents, invoice_due → invoiceDue, plus paging.
+// Returns { items, total_count, page_size, current_page, total_pages } unchanged.
+export async function GET(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        const { searchParams } = new URL(request.url);
-        const authHeader = request.headers.get('Authorization');
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized", items: [], total_count: 0 }, { status: 401 });
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return NextResponse.json(
-                { message: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
+        const sp = new URL(request.url).searchParams;
+        const pageSize = parseInt(sp.get("pageSize") || "10", 10) || 10;
+        const currentPage = parseInt(sp.get("currentPage") || "1", 10) || 1;
+        const orderId = sp.get("order_id");
+        const documentType = sp.get("document_type");
+        const invoiceDue = sp.get("invoice_due");
 
-        // Forward matching query parameters
-        const magentoParams = new URLSearchParams();
-        const orderId = searchParams.get('order_id');
-        const documentType = searchParams.get('document_type');
-        const invoiceDue = searchParams.get('invoice_due');
-        const pageSize = searchParams.get('pageSize') || '10';
-        const currentPage = searchParams.get('currentPage') || '1';
+        const variables: Record<string, any> = { pageSize, currentPage };
+        if (orderId) variables.orderIncrementId = orderId;
+        if (documentType && documentType !== "All") variables.documents = documentType;
+        if (invoiceDue && invoiceDue !== "All") variables.invoiceDue = invoiceDue;
 
-        if (orderId) magentoParams.append('orderIncrementId', orderId);
-        if (documentType && documentType !== 'All') magentoParams.append('documents', documentType);
-        if (invoiceDue && invoiceDue !== 'All') magentoParams.append('invoiceDue', invoiceDue);
-        magentoParams.append('pageSize', pageSize);
-        magentoParams.append('currentPage', currentPage);
-
-        const magentoUrl = `${BASE_URL}/orderupload/search${magentoParams.toString() ? `?${magentoParams.toString()}` : ''}`;
-
-        const response = await fetch(magentoUrl, {
-            method: 'GET',
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': authHeader,
-                'platform': 'web',
+                "Content-Type": "application/json",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
-            cache: 'no-store',
+            body: JSON.stringify({ query: KLEVER_ORDER_UPLOAD_SEARCH_QUERY, variables }),
+            cache: "no-store",
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            return NextResponse.json(
-                { message: data.message || `Magento returned ${response.status}`, attachments: [] },
-                { status: response.status }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[order-attachments/search] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to search attachments", items: [], total_count: 0 }, { status: 502 });
         }
 
-        return NextResponse.json(data);
-
+        const r = json?.data?.kleverOrderUploadSearch;
+        return NextResponse.json({
+            items: Array.isArray(r?.items) ? r.items : [],
+            total_count: r?.total_count ?? 0,
+            page_size: r?.page_size ?? pageSize,
+            current_page: r?.current_page ?? currentPage,
+            total_pages: r?.total_pages ?? 0,
+        });
     } catch (error: any) {
-        console.error('[orderupload-search] Catch error:', error);
-        return NextResponse.json(
-            { message: error.message || 'Server error searching attachments', attachments: [] },
-            { status: 500 }
-        );
+        console.error("[order-attachments/search] error:", error.message);
+        return NextResponse.json({ message: error.message || "Server error searching attachments", items: [], total_count: 0 }, { status: 500 });
     }
 }

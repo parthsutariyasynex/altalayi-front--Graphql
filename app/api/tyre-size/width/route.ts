@@ -1,63 +1,55 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth-options";
 import { NextRequest, NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
-
 import { getRequestToken } from "@/lib/api/auth-helper";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { KLEVER_TYRE_SIZE_WIDTH_QUERY } from "@/src/graphql/queries";
+
+// Tyre-size width options via Magento GraphQL (kleverTyreSizeWidth), replacing the
+// old REST /tyre-size/width. Response: { status, options: [{ value, label }] }.
+//
+// Catalog-wide + stable, so cached by locale (not token) and shared across users.
+// The backend resolver is slow (~6-8s); caching keeps the cascade snappy.
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const cache = new Map<string, { body: any; expires: number }>();
 
 export async function GET(request: NextRequest) {
     const token = await getRequestToken(request);
+    const locale = getLocaleFromRequest(request);
+
+    const now = Date.now();
+    const cached = cache.get(locale);
+    if (cached && cached.expires > now) {
+        return NextResponse.json(cached.body, { headers: { "X-Cache": "HIT" } });
+    }
 
     try {
-        const baseUrl = getBaseUrl(request);
-        const url = `${baseUrl}/tyre-size/width`;
-
-        const fetchOptions: any = {
+        const domain = process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com";
+        const res = await fetch(`${domain}/graphql`, {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "accept": "application/json",
-                "platform": "web",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                Store: locale,
+                ...(token && token !== "null" && { Authorization: `Bearer ${token}` }),
             },
-            cache: 'no-store',
-        };
-
-        if (token && token !== "null") {
-            fetchOptions.headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const res = await fetch(url, fetchOptions);
-        const responseText = await res.text();
-
-        if (!res.ok) {
-            console.error(`[tyre-size/width] Magento error: ${res.status} for ${url}`, responseText);
-            return NextResponse.json({
-                error: "Magento error",
-                status: res.status,
-                details: responseText.substring(0, 1000)
-            }, { status: res.status });
-        }
-
-        try {
-            const data = JSON.parse(responseText);
-            return NextResponse.json(data);
-        } catch (e) {
-            console.error(`[tyre-size/width] JSON Parse Error for ${url}:`, e);
-            return NextResponse.json({
-                error: "Invalid JSON from Magento",
-                raw: responseText.substring(0, 500)
-            }, { status: 500 });
-        }
-    } catch (err: any) {
-        console.error("[tyre-size/width] Fetch exception:", {
-            message: err.message,
-            stack: err.stack,
-            url: `${getBaseUrl(request)}/tyre-size/width`
+            body: JSON.stringify({ query: KLEVER_TYRE_SIZE_WIDTH_QUERY }),
+            cache: "no-store",
         });
-        return NextResponse.json({
-            error: "Internal Server Error",
-            message: err.message || "Fetch failed",
-            details: err.cause ? String(err.cause) : undefined
-        }, { status: 500 });
+
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[tyre-size/width] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ status: "error", options: [] }, { status: 502 });
+        }
+
+        const raw = json?.data?.kleverTyreSizeWidth;
+        const body = { status: raw?.status, options: Array.isArray(raw?.options) ? raw.options : [] };
+
+        cache.set(locale, { body, expires: now + CACHE_TTL_MS });
+        return NextResponse.json(body, { headers: { "X-Cache": "MISS" } });
+    } catch (err: any) {
+        console.error("[tyre-size/width] Fetch exception:", err?.message);
+        return NextResponse.json(
+            { status: "error", options: [], message: err?.message || "Fetch failed" },
+            { status: 500 }
+        );
     }
 }

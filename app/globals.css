@@ -12,6 +12,9 @@
 @theme {
   --font-sans: var(--font-rubik), system-ui, sans-serif;
   --font-rubik: var(--font-rubik), system-ui, sans-serif;
+  /* Brand yellow — single source of truth (matches the site nav/accent #F5B21B).
+     Generates bg-brand-yellow / text-brand-yellow / border-brand-yellow utilities. */
+  --color-brand-yellow: #F5B21B;
 }
 
 /* Rubik is loaded via next/font in layout.tsx — no @import needed */

@@ -6,7 +6,6 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useCart } from "@/modules/cart/hooks/useCart";
 import { useCheckout, Address } from "@/modules/checkout/hooks/useCheckout";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import Price from "@/app/components/Price";
 import { MultiLocationShippingSkeleton } from "@/components/skeletons";
@@ -42,6 +41,10 @@ const MultiShippingShippingPage: React.FC = () => {
 
     // Use a ref to prevent infinite loop triggered by isCheckoutLoading changes
     const hasFetched = useRef(false);
+    // Maps customer_address_id -> backend quote_address_id (from the shipping-methods
+    // response) so step 4 (setMultiShippingMethods) sends dynamic quote_address_id values
+    // instead of the customer_address_id the UI groups are keyed by.
+    const quoteAddrByCustomerRef = useRef<Record<string, string>>({});
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -99,8 +102,18 @@ const MultiShippingShippingPage: React.FC = () => {
                 try {
                     const methodsData = await fetchMultiShippingMethods();
                     const normalizedMethods: Record<string, any[]> = {};
+                    const custToQuoteAddr: Record<string, string> = {};
 
-                    if (methodsData?.methods) {
+                    if (Array.isArray(methodsData?.addresses)) {
+                        // GraphQL shape: { addresses: [{ customer_address_id, quote_address_id, methods: [...] }] }.
+                        // Key UI methods by customer_address_id (matches group.address.id) and remember the
+                        // backend quote_address_id per address so step 4 sends the dynamic value.
+                        methodsData.addresses.forEach((a: any) => {
+                            const custId = String(a.customer_address_id);
+                            normalizedMethods[custId] = Array.isArray(a.methods) ? a.methods : [];
+                            if (a.quote_address_id != null) custToQuoteAddr[custId] = String(a.quote_address_id);
+                        });
+                    } else if (methodsData?.methods) {
                         Object.entries(methodsData.methods).forEach(([addrId, methods]: [string, any]) => {
                             normalizedMethods[addrId] = Array.isArray(methods) ? methods : [];
                         });
@@ -108,13 +121,16 @@ const MultiShippingShippingPage: React.FC = () => {
                         processedGroups.forEach(g => normalizedMethods[g.address.id] = methodsData);
                     }
 
+                    quoteAddrByCustomerRef.current = custToQuoteAddr;
                     setShippingMethods(normalizedMethods);
 
                     // Auto-select first method for each address
                     const initialSelection: Record<string, string> = {};
                     Object.entries(normalizedMethods).forEach(([addrId, methods]) => {
                         if (methods.length > 0) {
-                            initialSelection[addrId] = methods[0].code || methods[0].method_code;
+                            const m: any = methods[0];
+                            initialSelection[addrId] = m.code
+                                || (m.carrier_code && m.method_code ? `${m.carrier_code}_${m.method_code}` : m.method_code);
                         }
                     });
                     setSelectedMethods(initialSelection);
@@ -166,7 +182,7 @@ const MultiShippingShippingPage: React.FC = () => {
         <div className="bg-white min-h-screen font-sans pb-10 md:pb-20">
 
 
-            <div className="max-w-[1200px] mx-auto pt-6 md:pt-10 px-3 sm:px-4">
+            <div className="max-w-[1440px] mx-auto pt-6 md:pt-10 px-3 sm:px-4">
                 <h1 className="text-[18px] sm:text-[20px] md:text-[24px] font-[900] text-black text-center uppercase mb-2 md:mb-3 tracking-tighter">
                     {t("multi.selectShipping")}
                 </h1>
@@ -250,8 +266,16 @@ const MultiShippingShippingPage: React.FC = () => {
                     <button
                         onClick={async () => {
                             try {
-                                if (Object.keys(selectedMethods).length > 0) {
-                                    await setMultiShippingMethods(selectedMethods);
+                                // Translate the per-address selection (keyed by customer_address_id, which the
+                                // UI groups use) to the backend quote_address_id captured from the shipping-methods
+                                // response, then send those dynamic ids to step 4.
+                                const methodsByQuoteAddr: Record<string, string> = {};
+                                Object.entries(selectedMethods).forEach(([custId, code]) => {
+                                    const quoteAddrId = quoteAddrByCustomerRef.current[custId];
+                                    if (quoteAddrId) methodsByQuoteAddr[quoteAddrId] = code;
+                                });
+                                if (Object.keys(methodsByQuoteAddr).length > 0) {
+                                    await setMultiShippingMethods(methodsByQuoteAddr);
                                 }
                                 // Automatically save the auto-selected shipping methods
                                 localStorage.setItem('multi_shipping_methods', JSON.stringify(selectedMethods));

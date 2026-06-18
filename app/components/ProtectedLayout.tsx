@@ -1,8 +1,8 @@
 'use client';
 
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode, useEffect, useState, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import Navbar from './Navbar';
 import Footer from './Footer';
@@ -18,8 +18,12 @@ interface ProtectedLayoutProps {
 export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
   const locale = useLocale();
   const dispatch = useDispatch();
+  // One-shot guard so the unauthenticated→login redirect fires at most once per mount
+  // (prevents a hard-reload ping-pong if useSession briefly flaps).
+  const redirectedRef = useRef(false);
 
   const isAuthenticated = status === 'authenticated';
 
@@ -65,14 +69,21 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const hideFooter = ['/login', '/forgot-password'].some(p => pathnameWithoutLocale.startsWith(p));
   const isLoading = status === 'loading';
 
-  // Redirect unauthenticated users to login on protected pages
+  // Redirect unauthenticated users to login on protected pages.
+  // Only acts on a DEFINITIVE 'unauthenticated' status (never 'loading'), uses a soft
+  // client navigation (router.replace, not a full reload that resets useSession), and a
+  // one-shot ref guard — so it can't spin in a reload loop.
   useEffect(() => {
-    if (status === 'unauthenticated' && !isPublicPage) {
+    if (status === 'loading') return;
+    if (status === 'unauthenticated' && !isPublicPage && !redirectedRef.current) {
+      redirectedRef.current = true;
       localStorage.removeItem('token');
       const loginUrl = `/${locale}/login?callbackUrl=${encodeURIComponent(pathname)}`;
-      window.location.href = loginUrl;
+      router.replace(loginUrl);
     }
-  }, [status, isPublicPage, locale, pathname]);
+    // Reset the guard once the user is authenticated again (e.g. after login).
+    if (status === 'authenticated') redirectedRef.current = false;
+  }, [status, isPublicPage, locale, pathname, router]);
 
   // Show route-matched skeleton while auth is checking on protected pages
   if (isLoading && !isPublicPage) {

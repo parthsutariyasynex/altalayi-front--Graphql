@@ -1,47 +1,43 @@
-import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_EXPORT_ORDERS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function GET(request: Request) {
+// GET — export orders to a file (GraphQL: kleverExportOrders). Replaces REST /orders/export.
+// No args. Returns { success, filename, base64, mime_type, total_orders, total_rows } as
+// JSON — the page reads data.base64 + data.filename and decodes the base64 to download.
+export async function GET(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return NextResponse.json(
-                { message: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const magentoUrl = `${BASE_URL}/orders/export`;
-
-        const response = await fetch(magentoUrl, {
-            method: 'GET',
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': authHeader,
-                'platform': 'web',
+                "Content-Type": "application/json",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
-            cache: 'no-store',
+            body: JSON.stringify({ query: KLEVER_EXPORT_ORDERS_QUERY }),
+            cache: "no-store",
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            return NextResponse.json(
-                { message: data.message || `Magento returned ${response.status}` },
-                { status: response.status }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[orders/export] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to export orders" }, { status: 502 });
         }
 
-        return NextResponse.json(data);
-
+        const r = json?.data?.kleverExportOrders;
+        if (!r?.base64) {
+            return NextResponse.json({ message: r?.success === false ? "Export not available" : "No file content received" }, { status: 404 });
+        }
+        // { success, filename, base64, mime_type, total_orders, total_rows }
+        return NextResponse.json(r);
     } catch (error: any) {
-        console.error('[orders-export] Catch error:', error);
-        return NextResponse.json(
-            { message: error.message || 'Server error exporting orders' },
-            { status: 500 }
-        );
+        console.error("[orders/export] error:", error.message);
+        return NextResponse.json({ message: error.message || "Server error exporting orders" }, { status: 500 });
     }
 }

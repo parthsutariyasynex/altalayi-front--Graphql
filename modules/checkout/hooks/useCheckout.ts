@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { getSession } from "next-auth/react";
-import { getClientLocale } from "@/lib/api/api-client";
+import { getClientLocale, getAuthToken } from "@/lib/api/api-client";
 
 export interface CustomAttribute {
     attribute_code: string;
@@ -53,11 +52,6 @@ export interface CheckoutTotals {
     shipping_amount?: number;
     grand_total: number;
     currency_code: string;
-}
-
-async function getAuthToken(): Promise<string | null> {
-    const session: any = await getSession();
-    return session?.accessToken ?? null;
 }
 
 /**

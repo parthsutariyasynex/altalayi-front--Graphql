@@ -213,7 +213,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                             disabled={isRemoving}
                             className="px-10 py-2.5 bg-[#fdb913] text-black font-black uppercase tracking-widest text-[12px] hover:bg-[#e5a811] transition-all rounded-sm min-w-[100px] flex items-center justify-center gap-2"
                         >
-                            {isRemoving ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : t("common.ok")}
+                            {isRemoving ? t("common.loading") : t("common.ok")}
                         </button>
                     </div>
                 </div>

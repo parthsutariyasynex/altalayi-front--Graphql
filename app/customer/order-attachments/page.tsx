@@ -11,7 +11,7 @@ import PortalDropdown from "@/components/PortalDropdown";
 import Pagination from "@/components/Pagination";
 import toast from "react-hot-toast";
 import { redirectToLogin } from "@/utils/helpers";
-import { OrderAttachmentsSkeleton } from "@/components/skeletons";
+import { OrderAttachmentsTableSkeleton } from "@/components/skeletons";
 
 // Helper to normalize options (strings or objects) to {label, value} format
 function normalizeOptions(options: any[]): { label: string; value: string }[] {
@@ -128,51 +128,29 @@ export default function OrderAttachmentsPage() {
         router.push(lp(`/my-orders/${orderId}`));
     };
 
-    const handleViewFile = async (attachment: any) => {
-        const id = attachment.attachment_id || attachment.id;
-        const fileUrl = attachment.file_url;
+    const handleViewFile = (attachment: any) => {
         const fileName = attachment.file_name || attachment.label || "file";
-        if (!id) return;
+        // kleverOrderUploadSearch returns `file_path` (relative), kleverOrderAttachments returns
+        // a full `file_url`. Open the file's PUBLIC media URL directly — no /file/:id proxy
+        // (that endpoint can't stream the binary and 404s).
+        const raw: string = attachment.file_url || attachment.file_path || "";
+        console.log("[ORDER ATTACHMENT] attachment_id:", attachment.attachment_id || attachment.id,
+            "| file_name:", fileName, "| file_url/path:", raw);
 
-        setOpeningFileId(id);
-        try {
-            let proxyUrl = `/api/kleverapi/order-attachments/file/${id}`;
-            if (fileUrl) {
-                proxyUrl += `?url=${encodeURIComponent(fileUrl)}`;
-            }
-
-            const res = await fetch(proxyUrl, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || t("orderAttachments.unableToOpen"));
-            }
-
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-
-            const ext = fileName.split('.').pop()?.toLowerCase() || "";
-            const viewableTypes = ["pdf", "jpg", "jpeg", "png", "gif", "webp"];
-            if (!viewableTypes.includes(ext)) {
-                link.download = fileName;
-            }
-
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => window.URL.revokeObjectURL(url), 5000);
-        } catch (error: any) {
-            console.error("View File Error:", error);
-            toast.error(error.message || t("common.error"));
-        } finally {
-            setOpeningFileId(null);
+        if (!raw) {
+            toast.error(t("orderAttachments.unableToOpen"));
+            return;
         }
+
+        let href = raw;
+        if (!/^https?:\/\//i.test(raw)) {
+            // Relative path (e.g. "/i/m/file.png", "/api/file.pdf") → public order-upload media URL.
+            const origin = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com").replace(/\/$/, "");
+            const path = raw.startsWith("/") ? raw : `/${raw}`;
+            href = `${origin}/media/orderupload${path}`;
+        }
+
+        window.open(href, "_blank", "noopener,noreferrer");
     };
 
     const getDocTypeLabel = (fileName: string, origType: string) => {
@@ -287,7 +265,7 @@ export default function OrderAttachmentsPage() {
                             </button>
                         </div>
                     ) : isLoading ? (
-                        <OrderAttachmentsSkeleton rows={6} />
+                        <OrderAttachmentsTableSkeleton rows={6} />
                     ) : attachments.length > 0 ? (
                         <>
                             {/* Desktop Table */}
@@ -322,7 +300,6 @@ export default function OrderAttachmentsPage() {
                                                     <td className="px-6 py-4 ltr:text-left rtl:text-right font-medium">
                                                         <div className="flex items-center gap-3">
                                                             <button onClick={() => { const useUrl = attachment.file_url || attachment.file_path; handleViewFile({ ...attachment, file_url: useUrl, attachment_id: attId }); }} disabled={isOpening} className={`text-black hover:underline inline-block break-all ltr:text-left rtl:text-right focus:outline-none font-bold ${isOpening ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>{fileName}</button>
-                                                            {isOpening && <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-400"></div>}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-center font-bold text-gray-600 uppercase">{t(`m.${docTypeLabel.toLowerCase()}`) !== `m.${docTypeLabel.toLowerCase()}` ? t(`m.${docTypeLabel.toLowerCase()}`) : (t(`data.${docTypeLabel}`) !== `data.${docTypeLabel}` ? t(`data.${docTypeLabel}`) : docTypeLabel)}</td>
@@ -360,7 +337,6 @@ export default function OrderAttachmentsPage() {
                                                         className={`text-[13px] font-bold text-black hover:text-yellow-600 ltr:text-left rtl:text-right break-all ${isOpening ? 'opacity-50' : ''}`}
                                                     >
                                                         {fileName}
-                                                        {isOpening && <span className="inline-block ltr:ml-2 rtl:mr-2 animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-400 align-middle"></span>}
                                                     </button>
                                                     <p className="text-[11px] text-gray-500 font-medium mt-1 uppercase tracking-wider">{t(`m.${docTypeLabel.toLowerCase()}`) !== `m.${docTypeLabel.toLowerCase()}` ? t(`m.${docTypeLabel.toLowerCase()}`) : (t(`data.${docTypeLabel}`) !== `data.${docTypeLabel}` ? t(`data.${docTypeLabel}`) : docTypeLabel)}</p>
                                                 </div>

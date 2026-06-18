@@ -187,8 +187,16 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
                     {(suggestions.length > 0 || isSearching || noResults) && (
                         <div className="bg-white border border-gray-200 border-t-0 rounded-b-xl max-h-[300px] overflow-y-auto shadow-lg">
                             {isSearching && (
-                                <div className="p-8 text-center text-gray-400 text-sm flex items-center justify-center gap-3">
-                                    <div className="w-5 h-5 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+                                <div className="p-3 space-y-2">
+                                    {[0, 1, 2].map((i) => (
+                                        <div key={i} className="flex items-center gap-3 px-3 py-2">
+                                            <div className="w-10 h-10 bg-gray-200 rounded animate-pulse flex-shrink-0" />
+                                            <div className="flex-1 space-y-1.5">
+                                                <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
+                                                <div className="h-2.5 w-1/2 bg-gray-200 rounded animate-pulse" />
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                             {!isSearching && noResults && (

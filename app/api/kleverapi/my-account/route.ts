@@ -1,58 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
+import { getLocaleFromRequest } from '@/lib/api/magento-url';
 import { getRequestToken } from '@/lib/api/auth-helper';
+import { CUSTOMER_QUERY } from '@/src/graphql/queries';
+import { UPDATE_CUSTOMER_MUTATION } from '@/src/graphql/mutations';
 
-// NOTE: This route is intentionally KEPT ON REST (not migrated to GraphQL).
-// The REST /my-account returns the full Magento customer object the account/profile
-// UI depends on (id, group_id, default_billing/shipping, addresses, custom_attributes,
-// extension_attributes). The available GraphQL ops can't preserve that shape:
-//   - native `customer` returns only firstname/lastname/email/taxvat (+ limited addresses)
-//   - `kleverDashboard` is stale/broken (schema rejects its `customer` field)
-// Migrating would drop fields and break the UI, so it stays REST until a GraphQL
-// op exposes the full customer shape. (Tracked as a pending route.)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// Pure GraphQL — no REST. The native `customer` query backs GET; `updateCustomer` backs POST.
+// Klever-only fields the old REST /my-account returned (group_id, custom_attributes,
+// extension_attributes) are not exposed by GraphQL, so we add safe defaults to the response
+// shape so the My Account UI keeps rendering without those.
+const SAFE_DEFAULTS = {
+    group_id: null,
+    custom_attributes: [] as any[],
+    extension_attributes: {} as Record<string, any>,
+};
+
+// GET — customer profile via native `customer` GraphQL (firstname/lastname/email/addresses +
+// default_billing/default_shipping). Returns the customer object at the top level, matching the
+// shape the profile UI / Redux customer slice expects.
 export async function GET(request: NextRequest) {
     try {
-        const baseUrl = getBaseUrl(request);
         const token = await getRequestToken(request);
-
         if (!token) {
-            return NextResponse.json(
-                { message: 'Authentication required.' },
-                { status: 401 }
-            );
+            return NextResponse.json({ message: 'Authentication required.' }, { status: 401 });
         }
 
-        const magentoUrl = `${baseUrl}/my-account`;
-        console.log(`[API ROUTE] Fetching Customer Info from: ${magentoUrl}`);
-
-        const response = await fetch(magentoUrl, {
-            method: 'GET',
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-                'platform': 'web',
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ query: CUSTOMER_QUERY }),
             cache: 'no-store',
         });
 
-        const contentType = response.headers.get("content-type");
-        let data;
-        if (contentType && contentType.includes("application/json")) {
-            data = await response.json();
-        } else {
-            data = { message: await response.text() };
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error('[my-account GET] GraphQL error:', JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: 'Magento GraphQL error', details: json.errors }, { status: 502 });
         }
 
-        if (!response.ok) {
-            console.error(`[API ROUTE ERROR] Magento returned ${response.status}:`, data);
-            return NextResponse.json(data, { status: response.status });
+        const customer = json?.data?.customer;
+        if (!customer) {
+            return NextResponse.json({ message: 'Customer profile not available.' }, { status: 404 });
         }
 
-        return NextResponse.json(data);
-
+        // Preserve the old top-level shape; add safe defaults for the fields GraphQL can't provide.
+        return NextResponse.json({ ...SAFE_DEFAULTS, ...customer });
     } catch (error: any) {
-        console.error('[API ROUTE ERROR] My Account GET Catch:', error);
+        console.error('[my-account GET] error:', error.message);
         return NextResponse.json(
             { message: error.message || 'Server-side error fetching account details.' },
             { status: 500 }
@@ -60,41 +59,52 @@ export async function GET(request: NextRequest) {
     }
 }
 
-/**
- * Optional: Handle POST requests for updating profile data
- */
-export async function POST(request: Request) {
+// POST — update the profile (firstname/lastname/email) via native `updateCustomer` GraphQL.
+// Accepts the existing UI payload { customer: { firstname, lastname, email, ... } } (or a flat
+// body). `email`/`password` are forwarded only when present (email change may need password).
+export async function POST(request: NextRequest) {
     try {
-        const baseUrl = getBaseUrl(request);
-        const authHeader = request.headers.get('Authorization');
-        const body = await request.json();
-
-        if (!authHeader) {
-            return NextResponse.json({ message: 'Authorization required' }, { status: 401 });
+        const token = await getRequestToken(request);
+        if (!token) {
+            return NextResponse.json({ message: 'Authentication required.' }, { status: 401 });
         }
 
-        // Use normalized URL to match standard REST path
+        const body = await request.json();
+        const src = body?.customer ?? body ?? {};
 
-        const magentoUrl = `${baseUrl}/my-account`;
-        console.log(`[API ROUTE] Updating Customer Info at: ${magentoUrl}`);
+        const input: Record<string, any> = {};
+        if (src.firstname != null) input.firstname = String(src.firstname);
+        if (src.lastname != null) input.lastname = String(src.lastname);
+        if (src.email != null && src.email !== '') input.email = String(src.email);
+        if (src.password != null && src.password !== '') input.password = String(src.password);
 
-        const response = await fetch(magentoUrl, {
+        if (Object.keys(input).length === 0) {
+            return NextResponse.json({ message: 'No updatable profile fields provided.' }, { status: 400 });
+        }
+
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': authHeader,
-                'platform': 'web',
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify({ query: UPDATE_CUSTOMER_MUTATION, variables: { input } }),
+            cache: 'no-store',
         });
 
-        const data = await response.json();
-        return NextResponse.json(data, { status: response.status });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error('[my-account POST] GraphQL error:', JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || 'Failed to update profile.' }, { status: 400 });
+        }
 
+        const customer = json?.data?.updateCustomer?.customer;
+        return NextResponse.json({ ...SAFE_DEFAULTS, ...(customer ?? {}) });
     } catch (error: any) {
-        console.error('[API ROUTE ERROR] My Account POST:', error);
+        console.error('[my-account POST] error:', error.message);
         return NextResponse.json(
-            { message: 'Server-side error updating account details.' },
+            { message: error.message || 'Server-side error updating account details.' },
             { status: 500 }
         );
     }

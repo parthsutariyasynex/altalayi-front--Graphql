@@ -273,8 +273,21 @@ function SidebarFilter({
                 <div className={`flex-1 flex flex-col bg-white transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
                     <div className="w-full">
                         {loading ? (
-                            <div className="p-10 flex flex-col gap-3 items-center">
-                                <div className="w-6 h-6 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                            <div className="w-full flex flex-col">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <div key={i} className="border-b border-gray-100 last:border-b-0 px-6 py-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                                            <div className="h-4 w-4 rounded bg-gray-200 animate-pulse" />
+                                        </div>
+                                        {Array.from({ length: 3 }).map((_, j) => (
+                                            <div key={j} className="flex items-center gap-3">
+                                                <div className="h-4 w-4 rounded-[3px] bg-gray-200 animate-pulse" />
+                                                <div className="h-3 w-32 bg-gray-200 rounded animate-pulse" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
                             </div>
                         ) : error ? (
                             <div className="p-5 text-red-500 text-xs">{error}</div>

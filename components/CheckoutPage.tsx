@@ -3,7 +3,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useLocalePath } from "@/hooks/useLocalePath";
 import { CheckoutSkeleton } from "@/components/skeletons";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Navbar from "@/app/components/Navbar";
 import { useCart } from "@/modules/cart/hooks/useCart";
@@ -22,7 +22,6 @@ import {
     Phone,
     User,
     ShoppingBag,
-    Loader2,
     ArrowLeft,
     Trash2,
     ChevronLeft,
@@ -42,13 +41,13 @@ import Price from "@/app/components/Price";
 
 const SectionHeader = ({ title, step }: { title: string; step?: number }) => (
     <div className="bg-gray-50/80 px-4 py-3 border-b border-[#ebebeb] flex items-center justify-between h-[50px]">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
             {step && (
-                <span className="w-5 h-5 rounded-full bg-black text-white text-[9px] font-black flex items-center justify-center shadow-sm">
+                <span className="w-6 h-6 flex-shrink-0 rounded-full bg-black text-white text-[10px] font-black flex items-center justify-center shadow-sm leading-none">
                     {step}
                 </span>
             )}
-            <h3 className="text-[10px] font-black text-black uppercase tracking-[0.15em]">
+            <h3 className="text-[10px] font-black text-black uppercase tracking-[0.15em] truncate">
                 {title}
             </h3>
         </div>
@@ -106,7 +105,12 @@ const CheckoutPageUI: React.FC = () => {
     const [isPaymentCommitmentOpen, setIsPaymentCommitmentOpen] = useState(false);
     const [isItemsListOpen, setIsItemsListOpen] = useState(true);
     const [isWarehouseModalOpen, setIsWarehouseModalOpen] = useState(false);
-    const [paymentCommitmentFile, setPaymentCommitmentFile] = useState<File | null>(null);
+    // Payment-commitment files support MULTIPLE uploads. Live File objects (this session) are
+    // kept in paymentCommitmentFiles; their names are mirrored in paymentCommitmentNames and
+    // persisted to localStorage so the uploaded files stay visible after a page refresh (a File
+    // object itself can't survive a reload).
+    const [paymentCommitmentFiles, setPaymentCommitmentFiles] = useState<File[]>([]);
+    const [paymentCommitmentNames, setPaymentCommitmentNames] = useState<string[]>([]);
     const [tempSelectedWarehouse, setTempSelectedWarehouse] = useState<{ id: string; name: string } | null>(null);
 
     // Pickup Form States
@@ -124,11 +128,20 @@ const CheckoutPageUI: React.FC = () => {
     const timeRef = useRef<HTMLDivElement>(null);
     const dateRef = useRef<HTMLDivElement>(null);
     const datePickerRef = useRef<any>(null);
+    const timeDropdownRef = useRef<HTMLUListElement>(null);
 
     // Close dropdowns on click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (timeRef.current && !timeRef.current.contains(event.target as Node)) {
+            const target = event.target as Node;
+            // The time dropdown list is rendered in a portal (document.body), so it is NOT inside
+            // timeRef. Treat clicks inside the portaled list as "inside" too — otherwise this
+            // mousedown handler closes the dropdown before a time option's click registers and
+            // the selection is swallowed (button keeps showing "Select").
+            if (
+                timeRef.current && !timeRef.current.contains(target) &&
+                (!timeDropdownRef.current || !timeDropdownRef.current.contains(target))
+            ) {
                 setIsTimeDropdownOpen(false);
             }
             if (dateRef.current && !dateRef.current.contains(event.target as Node)) {
@@ -206,17 +219,18 @@ const CheckoutPageUI: React.FC = () => {
         getSlots();
     }, [shippingType, selectedWarehouseId, pickupDate, fetchPickupTimeSlots]);
 
-    // Reset selected time if it's not in the new slots or disabled
-    useEffect(() => {
-        const currentSlot = availableTimeSlots.find((s) => s.time === pickupTime);
-        if (pickupTime && (!currentSlot || !currentSlot.enabled)) {
-            setPickupTime("");
-        }
-    }, [availableTimeSlots, pickupTime]);
+    // NOTE: intentionally NO effect that clears pickupTime when availableTimeSlots reloads.
+    // The slots list can re-fetch and return a different set (e.g. the fallback only spans
+    // 9am–9pm), which would wipe a valid selection like "00:30" and revert the button to
+    // "Select". The chosen time is the single source of truth and stays until the user changes
+    // it; it's re-validated on submit.
 
     // File inputs refs
     const poUploadRef = useRef<HTMLInputElement>(null);
     const paymentCommitmentRef = useRef<HTMLInputElement>(null);
+    // Set once an order is successfully placed, so the empty-cart redirect doesn't fire after
+    // clearCart() and steal the navigation to the success page.
+    const orderPlacedRef = useRef(false);
 
     // Auth Guard
     useEffect(() => {
@@ -225,8 +239,11 @@ const CheckoutPageUI: React.FC = () => {
         }
     }, [status, router]);
 
-    // Redirect if cart is empty
+    // Redirect if cart is empty — but NOT right after placing an order (clearCart() empties the
+    // cart on success, and without this guard the empty-cart redirect races the success redirect
+    // and bounces the user to /checkout/cart instead of the success page).
     useEffect(() => {
+        if (orderPlacedRef.current) return;
         if (!isCartLoading && cart && cart.items.length === 0) {
             toast.error(t("checkout.yourOrderIsEmpty"));
             router.push(lp("/checkout/cart"));
@@ -255,15 +272,49 @@ const CheckoutPageUI: React.FC = () => {
         }
     }, [paymentMethods, paymentMethod]);
 
+    // Restore the previously-selected payment-commitment filenames after a refresh.
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const saved = localStorage.getItem("payment_commitment_file_names");
+        if (saved) {
+            try {
+                const arr = JSON.parse(saved);
+                if (Array.isArray(arr)) setPaymentCommitmentNames(arr.filter((n) => typeof n === "string"));
+            } catch { /* ignore malformed value */ }
+        }
+    }, []);
+
+    // Append one or more files (dedupe by name) and persist the full name list.
+    const addPaymentCommitmentFiles = (files: File[]) => {
+        if (!files.length) return;
+        setPaymentCommitmentFiles((prev) => {
+            const existing = new Set(prev.map((f) => f.name));
+            const merged = [...prev, ...files.filter((f) => !existing.has(f.name))];
+            return merged;
+        });
+        setPaymentCommitmentNames((prev) => {
+            const next = [...prev];
+            files.forEach((f) => { if (!next.includes(f.name)) next.push(f.name); });
+            localStorage.setItem("payment_commitment_file_names", JSON.stringify(next));
+            return next;
+        });
+        toast.success(files.length > 1 ? `${files.length} files selected` : "File selected successfully!");
+    };
+
     const handlePaymentCommitmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setPaymentCommitmentFile(e.target.files[0]);
-            toast.success("File selected successfully!");
+        if (e.target.files && e.target.files.length > 0) {
+            addPaymentCommitmentFiles(Array.from(e.target.files));
         }
     };
 
-    const removePaymentCommitment = () => {
-        setPaymentCommitmentFile(null);
+    const removePaymentCommitment = (name: string) => {
+        setPaymentCommitmentFiles((prev) => prev.filter((f) => f.name !== name));
+        setPaymentCommitmentNames((prev) => {
+            const next = prev.filter((n) => n !== name);
+            if (next.length > 0) localStorage.setItem("payment_commitment_file_names", JSON.stringify(next));
+            else localStorage.removeItem("payment_commitment_file_names");
+            return next;
+        });
         if (paymentCommitmentRef.current) {
             paymentCommitmentRef.current.value = "";
         }
@@ -315,42 +366,59 @@ const CheckoutPageUI: React.FC = () => {
         }
     }, [status, getOrderComment]);
 
+    // Re-sync the PO file list from the server (authoritative filenames). Reused on mount AND
+    // after every upload/remove so the displayed names always match what the backend stored —
+    // otherwise remove-by-name can target a name the server never had and silently no-op.
+    const refreshPoFiles = useCallback(async () => {
+        try {
+            const data = await getPoUpload();
+
+            // Handle common response formats
+            let filesArray: any[] = [];
+            if (Array.isArray(data)) {
+                filesArray = data;
+            } else if (data && Array.isArray(data.files)) {
+                filesArray = data.files;
+            } else if (data && Array.isArray(data.data)) {
+                filesArray = data.data;
+            } else if (data && (data.fileName || data.filename || data.file)) {
+                filesArray = [data];
+            }
+
+            // Keep the PO list strictly PO-only. The backend kleverGetPoFiles returns ALL of the
+            // customer's uploaded files (PO + Payment share one store). Payment-commitment files
+            // are tracked separately under their own localStorage key — exclude any of those names
+            // here so a Payment file can never bleed into the PO Number section. Also drop any
+            // item explicitly typed "payment" if the backend provides a type.
+            let paymentNames = new Set<string>();
+            try {
+                const arr = JSON.parse(localStorage.getItem("payment_commitment_file_names") || "[]");
+                if (Array.isArray(arr)) paymentNames = new Set(arr);
+            } catch { /* ignore */ }
+
+            const normalized = filesArray
+                .map((item: any) => {
+                    if (typeof item === 'string') return { fileName: item, type: "" };
+                    return {
+                        fileName: item.fileName || item.filename || item.file_name || item.name || item.file || "Unknown File",
+                        type: String(item.type || item.file_type || ""),
+                    };
+                })
+                .filter((f) => f.type.toLowerCase() !== "payment" && !paymentNames.has(f.fileName))
+                .map(({ fileName }) => ({ fileName }));
+
+            setUploadedPOs(normalized);
+        } catch (err) {
+            console.error("Failed to fetch PO upload:", err);
+        }
+    }, [getPoUpload]);
+
     // Fetch existing PO Upload
     useEffect(() => {
-        const fetchPoUpload = async () => {
-            try {
-                const data = await getPoUpload();
-                console.log("DEBUG: PO Upload Data:", data);
-
-                // Handle common response formats
-                let filesArray = [];
-                if (Array.isArray(data)) {
-                    filesArray = data;
-                } else if (data && Array.isArray(data.files)) {
-                    filesArray = data.files;
-                } else if (data && Array.isArray(data.data)) {
-                    filesArray = data.data;
-                } else if (data && (data.fileName || data.filename || data.file)) {
-                    filesArray = [data];
-                }
-
-                const normalized = filesArray.map((item: any) => {
-                    if (typeof item === 'string') return { fileName: item };
-                    return {
-                        fileName: item.fileName || item.filename || item.file_name || item.name || item.file || "Unknown File"
-                    };
-                });
-
-                setUploadedPOs(normalized);
-            } catch (err) {
-                console.error("Failed to fetch PO upload:", err);
-            }
-        };
-
         if (status === "authenticated") {
-            fetchPoUpload();
+            refreshPoFiles();
         }
-    }, [status, getPoUpload]);
+    }, [status, refreshPoFiles]);
 
     // Memoized filtered addresses
     const filteredAddresses = useMemo(() => {
@@ -490,24 +558,42 @@ const CheckoutPageUI: React.FC = () => {
                 comment: comment // Pass it just in case backend expects it here too
             });
 
-            // 4. Handle Success
+            // 4. Handle Success — log the FULL response so the exact id key the backend uses is visible.
+            console.log(">>> Place Order Response:", JSON.stringify(result, null, 2));
+
+            // Map the order id from any of the keys the backend might use.
+            const orderId = String(
+                result?.order_id ??
+                result?.order_increment_id ??
+                result?.increment_id ??
+                result?.order_number ??
+                ""
+            );
+
+            // Only treat it as a failure when there's NO order id AND an explicit error. A valid
+            // order with status "approval_pending" (or any status) is a SUCCESS — never an error.
+            if (!orderId && (result?.success === false || result?.error || result?.message)) {
+                throw new Error(result?.error || result?.message || "Failed to place order.");
+            }
+
+            // Mark placed BEFORE clearing the cart so the empty-cart effect won't hijack navigation.
+            orderPlacedRef.current = true;
             toast.success(t("common.success"));
 
-            // Store technical order details for success page
+            // Save the order summary (success page fallback) before clearing the cart.
             const orderSummary = {
-                order_id: result.order_id,
-                order_increment_id: result.order_increment_id,
-                grand_total: result.grand_total,
-                currency_code: result.currency_code,
-                status: result.status
+                order_id: orderId,
+                order_increment_id: result?.order_increment_id ?? result?.increment_id ?? result?.order_number ?? orderId,
+                grand_total: result?.grand_total,
+                currency_code: result?.currency_code,
+                status: result?.status
             };
-
             localStorage.setItem('last_order_summary', JSON.stringify(orderSummary));
 
-            // Clear cart after successful order
+            // Navigate to the success page FIRST (using order_id directly), then clear the cart —
+            // so the redirect always wins the race with any cart-driven effect.
+            router.push(lp(`/checkout/success?order_id=${encodeURIComponent(orderId)}`));
             try { await clearCart(); } catch { /* cart will refresh on next visit */ }
-
-            router.push(lp(`/checkout/success?order_id=${result.order_id}`));
         } catch (error: any) {
             console.error("Place Order Error:", error);
             toast.error(error.message || "Failed to place order. Please try again.");
@@ -586,7 +672,10 @@ const CheckoutPageUI: React.FC = () => {
                 formData.append("type", "po");
 
                 await uploadPoFile(formData);
-                setUploadedPOs(prev => [...prev, { fileName: file.name }]);
+                // Optimistically show the uploaded file immediately (keyed by its own name so
+                // remove can target it). Don't refetch the server list here — it may not reflect
+                // the new file yet and would make it flicker/vanish.
+                setUploadedPOs(prev => prev.some(p => p.fileName === file.name) ? prev : [...prev, { fileName: file.name }]);
                 toast.success(`Uploaded: ${file.name}`);
             }
         } catch (error: any) {
@@ -615,10 +704,14 @@ const CheckoutPageUI: React.FC = () => {
     };
 
     const handleDeletePo = async (fileName: string) => {
+        // Remove ONLY this entry from the PO list, immediately. This touches `uploadedPOs` and
+        // nothing else — the payment-commitment file (separate `paymentCommitmentFile` state) is
+        // untouched, so removing a PO file never deletes the payment file. Kept removed even if
+        // the server call fails so the user's remove always reflects in the UI.
+        setUploadedPOs(prev => prev.filter(p => p.fileName !== fileName));
+        setIsUploading(true);
         try {
-            setIsUploading(true);
             await deletePoFile(fileName);
-            setUploadedPOs(prev => prev.filter(p => p.fileName !== fileName));
             toast.success("File removed successfully");
         } catch (error: any) {
             toast.error(error.message || "Failed to remove file");
@@ -640,15 +733,6 @@ const CheckoutPageUI: React.FC = () => {
     };
     if (isCartLoading || status === "loading") {
         return <CheckoutSkeleton />;
-    }
-
-    if (isCartLoading) {
-        return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-center">
-                <Loader2 size={48} className="text-[#F5B21B] animate-spin mb-4" />
-                <p className="text-[12px] font-black uppercase tracking-widest text-gray-500">Loading your cart...</p>
-            </div>
-        );
     }
 
     if (!cart || cart.items.length === 0) {
@@ -849,7 +933,8 @@ const CheckoutPageUI: React.FC = () => {
                                                             </span>
                                                         </div>
                                                         <button
-                                                            onClick={() => handleDeletePo(po.fileName)}
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); handleDeletePo(po.fileName); }}
                                                             className="bg-red-50 text-red-600 px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all hover:bg-red-600 hover:text-white border-l border-[#ebebeb] active:scale-95"
                                                             disabled={isUploading}
                                                         >
@@ -865,7 +950,7 @@ const CheckoutPageUI: React.FC = () => {
                         </div>
 
                         {/* 3. Order Comment */}
-                        <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
+                        {/* <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
                             <SectionHeader title={t("m.order-comment")} step={3} />
                             <div className="p-4 sm:p-5">
                                 <div className="space-y-1.5">
@@ -879,10 +964,10 @@ const CheckoutPageUI: React.FC = () => {
                                     />
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="bg-white border border-[#ebebeb] shadow-sm rounded-xl overflow-hidden" id="step-3">
-                            <SectionHeader title={t("checkout.shippingMethod")} step={4} />
+                            <SectionHeader title={t("checkout.shippingMethod")} step={3} />
                             <div className="p-6">
                                 <div className="space-y-6">
                                     {/* Delivery Option */}
@@ -1056,8 +1141,7 @@ const CheckoutPageUI: React.FC = () => {
                                                                 <div className="relative flex-1">
                                                                     {isLoadingTimeSlots ? (
                                                                         <div className="w-full h-10 px-4 py-2 bg-white border border-gray-300 flex items-center gap-2">
-                                                                            <Loader2 size={14} className="animate-spin text-gray-400" />
-                                                                            <span className="text-[12px] text-gray-400">Loading...</span>
+                                                                            <span className="text-[12px] text-gray-400">{t("common.loading")}</span>
                                                                         </div>
                                                                     ) : (
                                                                         <div ref={timeRef} className="relative">
@@ -1068,7 +1152,7 @@ const CheckoutPageUI: React.FC = () => {
                                                                             >
                                                                                 <span className={pickupTime ? "text-black" : "text-gray-400"}>
                                                                                     {pickupTime
-                                                                                        ? availableTimeSlots.find((s) => s.time === pickupTime)?.label || pickupTime
+                                                                                        ? availableTimeSlots.find((s) => (s.time || s.label) === pickupTime)?.label || pickupTime
                                                                                         : t("m.select")}
                                                                                 </span>
                                                                                 <ChevronDown size={14} className={`text-gray-500 transition-transform ${isTimeDropdownOpen ? "rotate-180" : ""}`} />
@@ -1077,6 +1161,7 @@ const CheckoutPageUI: React.FC = () => {
                                                                                 <>
                                                                                     <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setIsTimeDropdownOpen(false)} />
                                                                                     <ul
+                                                                                        ref={timeDropdownRef}
                                                                                         className="bg-white border border-gray-300 rounded-sm shadow-xl max-h-48 overflow-y-auto"
                                                                                         style={{
                                                                                             position: "fixed",
@@ -1097,14 +1182,12 @@ const CheckoutPageUI: React.FC = () => {
                                                                                         </li>
                                                                                         {availableTimeSlots.map((slot: any) => (
                                                                                             <li
-                                                                                                key={slot.time}
+                                                                                                key={slot.time || slot.label}
                                                                                                 onClick={() => {
-                                                                                                    if (slot.enabled) {
-                                                                                                        setPickupTime(slot.time);
-                                                                                                        setIsTimeDropdownOpen(false);
-                                                                                                    }
+                                                                                                    setPickupTime(slot.time || slot.label);
+                                                                                                    setIsTimeDropdownOpen(false);
                                                                                                 }}
-                                                                                                className={`px-4 py-2 text-[13px] font-medium transition-colors ${!slot.enabled ? "opacity-40 cursor-not-allowed text-gray-400" : "cursor-pointer"} ${pickupTime === slot.time ? "bg-[#f5a623] text-white" : slot.enabled ? "hover:bg-gray-100" : ""}`}
+                                                                                                className={`px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors ${pickupTime === (slot.time || slot.label) ? "bg-[#f5a623] text-white" : "hover:bg-gray-100"}`}
                                                                                             >
                                                                                                 {slot.label}
                                                                                             </li>
@@ -1129,7 +1212,7 @@ const CheckoutPageUI: React.FC = () => {
                         </div>
 
                         <div className="bg-white border border-[#ebebeb] shadow-sm rounded-xl overflow-hidden">
-                            <SectionHeader title={t("checkout.paymentMethod")} step={5} />
+                            <SectionHeader title={t("checkout.paymentMethod")} step={4} />
 
                             <div className="p-5">
                                 <p className="text-[14px] font-bold text-black mb-4">{t("m.credit-account")}</p>
@@ -1159,9 +1242,8 @@ const CheckoutPageUI: React.FC = () => {
                                                 onDrop={(e) => {
                                                     e.preventDefault();
                                                     setDragActive(false);
-                                                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                                                        setPaymentCommitmentFile(e.dataTransfer.files[0]);
-                                                        toast.success(t("common.success"));
+                                                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                                                        addPaymentCommitmentFiles(Array.from(e.dataTransfer.files));
                                                     }
                                                 }}
                                             >
@@ -1174,28 +1256,32 @@ const CheckoutPageUI: React.FC = () => {
                                                 <input
                                                     type="file"
                                                     className="hidden"
+                                                    multiple
                                                     ref={paymentCommitmentRef}
                                                     onChange={handlePaymentCommitmentChange}
                                                     accept=".jpg,.jpeg,.png,.zip,.rar,.docx,.doc,.pdf,.xls,.xlsx,.csv,.msg"
                                                 />
                                             </div>
 
-                                            {/* File List */}
-                                            {paymentCommitmentFile && (
-                                                <div className="flex items-center">
-                                                    <div className="flex border border-[#ebebeb] rounded-xl overflow-hidden group shadow-sm bg-white">
-                                                        <div className="px-6 py-3 flex-1 flex items-center min-w-0">
-                                                            <span className="text-[13px] font-black text-black truncate ltr:mr-2 rtl:ml-2">
-                                                                {paymentCommitmentFile.name}
-                                                            </span>
+                                            {/* File List — one row per uploaded file (supports multiple) */}
+                                            {paymentCommitmentNames.length > 0 && (
+                                                <div className="flex flex-wrap gap-x-4 gap-y-3">
+                                                    {paymentCommitmentNames.map((name) => (
+                                                        <div key={name} className="flex border border-[#ebebeb] rounded-xl overflow-hidden group shadow-sm bg-white">
+                                                            <div className="px-6 py-3 flex-1 flex items-center min-w-0">
+                                                                <span className="text-[13px] font-black text-black truncate ltr:mr-2 rtl:ml-2">
+                                                                    {name}
+                                                                </span>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); removePaymentCommitment(name); }}
+                                                                className="bg-red-50 text-red-600 px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all hover:bg-red-600 hover:text-white border-l border-[#ebebeb] active:scale-95"
+                                                            >
+                                                                {t("m.remove")}
+                                                            </button>
                                                         </div>
-                                                        <button
-                                                            onClick={removePaymentCommitment}
-                                                            className="bg-red-50 text-red-600 px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all hover:bg-red-600 hover:text-white border-l border-[#ebebeb] active:scale-95"
-                                                        >
-                                                            {t("m.remove")}
-                                                        </button>
-                                                    </div>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
@@ -1285,7 +1371,7 @@ const CheckoutPageUI: React.FC = () => {
                                     </div>
 
                                     <div className="flex justify-between items-center text-[14px]">
-                                        <span className="text-black font-medium">{t("m.tax")}</span>
+                                        <span className="text-black font-medium">{t("cart.vat")}</span>
                                         <span className="font-black text-black price currency-riyal">
                                             <Price amount={displayTotals.tax_amount} />
                                         </span>
@@ -1308,7 +1394,6 @@ const CheckoutPageUI: React.FC = () => {
                                             placeholder={t("m.enter-your-comment")}
                                             rows={4}
                                             className="w-full p-4 border border-gray-200 bg-white focus:border-gray-400 outline-none text-[14px] font-medium resize-none transition-all"
-                                            value={comment}
                                             onChange={(e) => setComment(e.target.value)}
                                         />
                                     </div>
@@ -1325,13 +1410,13 @@ const CheckoutPageUI: React.FC = () => {
                                     >
                                         {isPlacingOrder ? (
                                             <>
-                                                <Loader2 size={18} className="animate-spin" strokeWidth={4} />
                                                 {t("common.loading")}
                                             </>
                                         ) : (
                                             <>
                                                 {t("common.placeOrder")}
-                                                <span className="text-lg leading-none opacity-50 select-none flex items-center">→</span>
+                                                {/* <span className="text-lg leading-none opacity-50 select-none flex items-center">→</span> */}
+                                                <span className="opacity-50 leading-none">➜</span>
                                             </>
                                         )}
                                     </button>
@@ -1385,9 +1470,13 @@ const CheckoutPageUI: React.FC = () => {
                                     </div>
                                 ))
                             ) : (
-                                <div className="text-center py-12">
-                                    <Loader2 className="animate-spin mx-auto text-[#F5B21B] mb-4" size={32} />
-                                    <p className="text-gray-500 font-bold uppercase tracking-widest text-[12px]">Fetching Pickup Locations...</p>
+                                <div className="py-6 space-y-3">
+                                    {[0, 1, 2].map((i) => (
+                                        <div key={i} className="border border-[#ebebeb] rounded-lg p-4 space-y-2">
+                                            <div className="h-3.5 w-1/3 bg-gray-200 rounded animate-pulse" />
+                                            <div className="h-3 w-2/3 bg-gray-200 rounded animate-pulse" />
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>

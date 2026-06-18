@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getBaseUrl } from '@/lib/api/magento-url';
 
+// ⚠️ STAYS REST — GraphQL BLOCKER (binary file download).
+// This route streams the raw order-attachment file (blob) for download. The `KleverOrderAttachment`
+// type exposes only { attachment_id, document_type, file_name, file_url, invoice_due,
+// payment_status, upload_date } — NO base64/content field, and there's no attachment-download op.
+// GraphQL can't stream binaries. To migrate, the backend must add a content field, e.g.:
+//     kleverOrderAttachmentFile(attachmentId: Int!): { filename, mime_type, base64 }  (like kleverOrderPdf)
+// Until then this remains a REST/blob proxy.
+//
 // BASE_URL is now obtained per-request via getBaseUrl(request)
 
 // Fix double slashes in URL path (but preserve https://)

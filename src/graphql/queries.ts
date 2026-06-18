@@ -80,12 +80,10 @@ export const CUSTOMER_QUERY = /* GraphQL */ `
       email
       firstname
       lastname
-      middlename
-      prefix
-      suffix
       gender
-      dob
       taxvat
+      customer_code
+      industry
       created_at
       default_billing
       default_shipping
@@ -93,6 +91,7 @@ export const CUSTOMER_QUERY = /* GraphQL */ `
         id
         firstname
         lastname
+        company
         street
         city
         region {
@@ -104,6 +103,90 @@ export const CUSTOMER_QUERY = /* GraphQL */ `
         telephone
         default_billing
         default_shipping
+      }
+    }
+  }
+`;
+
+// Customer addresses via native `customer { addresses }` — backs the GraphQL /addresses routes.
+// Full address field set (incl. company / region_code / vat_id) so the address-book UI shape
+// is preserved. (CUSTOMER_QUERY's address selection omits company/region_code, hence a focused
+// query here.)
+export const CUSTOMER_ADDRESSES_QUERY = /* GraphQL */ `
+  query CustomerAddresses {
+    customer {
+      addresses {
+        id
+        firstname
+        lastname
+        company
+        street
+        city
+        region {
+          region
+          region_id
+          region_code
+        }
+        postcode
+        country_code
+        telephone
+        vat_id
+        default_billing
+        default_shipping
+      }
+    }
+  }
+`;
+
+// Customer wishlist (native Magento) — backs the GraphQL /favorite-products list. items_v2 is
+// paginated; product carries the fields the favourites UI maps (sku/name/image/price/stock).
+export const CUSTOMER_WISHLIST_QUERY = /* GraphQL */ `
+  query CustomerWishlist($currentPage: Int!, $pageSize: Int!) {
+    customer {
+      wishlists {
+        id
+        items_count
+        items_v2(currentPage: $currentPage, pageSize: $pageSize) {
+          items {
+            id
+            quantity
+            product {
+              id
+              sku
+              name
+              url_key
+              stock_status
+              pattern
+              origin
+              image { url }
+              price_range {
+                minimum_price {
+                  final_price { value currency }
+                  regular_price { value }
+                }
+              }
+            }
+          }
+          page_info { current_page page_size total_pages }
+        }
+      }
+    }
+  }
+`;
+
+// Resolves product select-attribute option IDs → labels (e.g. pattern/origin). The native
+// ProductInterface returns these attributes as option IDs; this maps them to display labels.
+export const PRODUCT_ATTRIBUTE_OPTIONS_QUERY = /* GraphQL */ `
+  query ProductAttributeOptions {
+    customAttributeMetadata(
+      attributes: [
+        { attribute_code: "pattern", entity_type: "catalog_product" }
+        { attribute_code: "origin", entity_type: "catalog_product" }
+      ]
+    ) {
+      items {
+        attribute_code
+        attribute_options { value label }
       }
     }
   }
@@ -124,53 +207,7 @@ export const KLEVER_ACCOUNT_SIDEBAR_QUERY = /* GraphQL */ `
   }
 `;
 
-export const KLEVER_DASHBOARD_QUERY = /* GraphQL */ `
-  query KleverDashboard {
-    kleverDashboard {
-      customer {
-        addresses {
-          city
-          company
-          country_id
-          customer_id
-          firstname
-          id
-          is_default_billing
-          is_default_shipping
-          lastname
-          postcode
-          region
-          region_id
-          street
-          telephone
-          vat_id
-        }
-        created_at
-        custom_attributes {
-          attribute_code
-          value
-        }
-        default_billing
-        default_shipping
-        dob
-        email
-        firstname
-        gender
-        group_id
-        id
-        lastname
-        middlename
-        prefix
-        suffix
-        taxvat
-        updated_at
-      }
-      favorite_products_count
-      pending_orders_count
-      recent_orders_count
-    }
-  }
-`;
+
 
 export const KLEVER_CUSTOMER_TARGET_DASHBOARD_QUERY = /* GraphQL */ `
   query KleverCustomerTargetDashboard($searchYear: Int, $compareYear: Int) {
@@ -207,7 +244,12 @@ export const KLEVER_TARGETS_ACHIEVEMENTS_QUERY = /* GraphQL */ `
   query KleverTargetsAchievements($year: Int) {
     kleverTargetsAchievements(year: $year) {
       available_years
-      years { year sales_target achievement incentive }
+      years {
+        achievement
+        incentive
+        sales_target
+        year
+      }
     }
   }
 `;
@@ -280,9 +322,14 @@ export const KLEVER_SUBACCOUNT_PERMISSIONS_QUERY = /* GraphQL */ `
   }
 `;
 
+// Single subaccount by id. NOTE: the real schema op is `kleverSubaccount` — there is
+// NO `kleverSubaccountById` ("Cannot query field …"). `permissions` validates here, but
+// like the list query it may throw at execution (schema types it [Int] yet the resolver
+// returns string codes → "Expected a value of type Int"); the route returns partial data
+// safely if that happens. [[klever-subaccount-permissions-type-bug]]
 export const KLEVER_SUBACCOUNT_BY_ID_QUERY = /* GraphQL */ `
-  query KleverSubaccountById($subaccountId: Int!) {
-    kleverSubaccountById(subaccountId: $subaccountId) {
+  query KleverSubaccount($subaccountId: Int!) {
+    kleverSubaccount(subaccountId: $subaccountId) {
       id
       customer_id
       firstname
@@ -315,7 +362,7 @@ export const CMS_PAGE_QUERY = /* GraphQL */ `
 
 export const KLEVER_CATEGORY_PRODUCTS_QUERY = /* GraphQL */ `
   query KleverCategoryProducts(
-    $categoryId: Int!
+    $categoryId: Int
     $pageSize: Int
     $currentPage: Int
     $minPrice: Float
@@ -341,11 +388,7 @@ export const KLEVER_CATEGORY_PRODUCTS_QUERY = /* GraphQL */ `
     $types: String
     $runflat: String
     $oemMarking: String
-    $newArrivals: Boolean
-    $mgsBrand: String
-    $oilType: String
-    $oilGrade: String
-    $liters: String
+    $newArrivals: String
   ) {
     kleverCategoryProducts(
       categoryId: $categoryId
@@ -375,10 +418,6 @@ export const KLEVER_CATEGORY_PRODUCTS_QUERY = /* GraphQL */ `
       runflat: $runflat
       oemMarking: $oemMarking
       newArrivals: $newArrivals
-      mgsBrand: $mgsBrand
-      oilType: $oilType
-      oilGrade: $oilGrade
-      liters: $liters
     ) {
       total_count
       page_size
@@ -412,6 +451,28 @@ export const KLEVER_CATEGORY_PRODUCTS_QUERY = /* GraphQL */ `
 export const KLEVER_CATEGORY_FILTER_OPTIONS_QUERY = /* GraphQL */ `
   query KleverCategoryFilterOptions($categoryId: Int!) {
     kleverCategoryFilterOptions(categoryId: $categoryId) {
+      filters {
+        code
+        label
+        record_count
+        options {
+          value
+          label
+          count
+        }
+      }
+    }
+  }
+`;
+
+// Sidebar layered-nav filters for a category. Uses kleverCategoryProducts(pageSize: 1) —
+// NOT kleverCategoryFilterOptions — because the dedicated op returns only 11 groups and
+// omits the category-wide "Promotions and Offers" (offers) group the sidebar needs.
+// pageSize:1 keeps the product payload negligible while returning the full filter set.
+// Backs /api/category-filter-options.
+export const KLEVER_CATEGORY_FILTER_OPTIONS_FROM_PRODUCTS_QUERY = /* GraphQL */ `
+  query CategoryFilterOptions($categoryId: Int!) {
+    kleverCategoryProducts(categoryId: $categoryId, pageSize: 1) {
       filters {
         code
         label
@@ -597,19 +658,28 @@ export const CART_SHIPPING_METHODS_QUERY = /* GraphQL */ `
   }
 `;
 
+// export const CART_PAYMENT_METHODS_QUERY = /* GraphQL */ `
+//   query CartPaymentMethods($cartId: String!) {
+//     cart(cart_id: $cartId) {
+//       available_payment_methods {
+//         code
+//         title
+//       }
+//       selected_payment_method {
+//         code
+//         title
+//       }
+//     }
+//   }
+// `;
+
+
 export const CART_PAYMENT_METHODS_QUERY = /* GraphQL */ `
-  query CartPaymentMethods($cartId: String!) {
-    cart(cart_id: $cartId) {
-      available_payment_methods {
-        code
-        title
-      }
-      selected_payment_method {
-        code
-        title
-      }
-    }
-  }
+  query AvailablePaymentMethods($cartId: String!) {
+ cart(cart_id: $cartId) {
+ available_payment_methods { code title }
+ }
+}
 `;
 
 // Native cart.prices for the checkout totals route (kleverCheckoutTotals does not
@@ -690,71 +760,12 @@ export const CUSTOMER_ORDERS_QUERY = /* GraphQL */ `
   }
 `;
 
-export const KLEVER_MY_ORDERS_QUERY = /* GraphQL */ `
-  query KleverMyOrders(
-    $orderStatus: String
-    $orderNumber: String
-    $companyCode: String
-    $customerId: Int
-    $pageSize: Int
-    $currentPage: Int
-  ) {
-    kleverMyOrders(
-      orderStatus: $orderStatus
-      orderNumber: $orderNumber
-      companyCode: $companyCode
-      customerId: $customerId
-      pageSize: $pageSize
-      currentPage: $currentPage
-    ) {
-      orders {
-        order_id
-        increment_id
-        status
-        status_label
-        created_at
-        grand_total
-        currency_code
-        total_item_count
-        company_code
-        company_name
-        ordered_by
-        payment_method
-        sap_order_number
-        shipping_description
-      }
-      total_count
-    }
-  }
-`;
 
 export const KLEVER_ORDER_FILTER_OPTIONS_QUERY = /* GraphQL */ `
   query KleverOrderFilterOptions {
     kleverOrderFilterOptions {
       status_options { label value }
       company_options { label value }
-    }
-  }
-`;
-
-export const KLEVER_ORDER_DETAILS_QUERY = /* GraphQL */ `
-  query KleverOrderDetails($orderId: Int!) {
-    kleverOrderDetails(orderId: $orderId) {
-      entity_id
-      increment_id
-      status
-      grand_total
-      subtotal
-      items {
-        sku
-        name
-        qty_ordered
-        price
-        row_total
-      }
-      billing_address { firstname city country_id }
-      shipping_address { firstname city country_id }
-      payment_method
     }
   }
 `;
@@ -858,6 +869,7 @@ export const KLEVER_ORDER_UPLOAD_SEARCH_QUERY = /* GraphQL */ `
         id
         order_id
         file_name
+        file_path
         comment
         upload_for
         created_at
@@ -881,105 +893,16 @@ export const KLEVER_ORDER_UPLOAD_FILTER_OPTIONS_QUERY = /* GraphQL */ `
   }
 `;
 
-export const KLEVER_PAYMENT_HISTORY_QUERY = /* GraphQL */ `
-  query KleverPaymentHistory(
-    $orderId: Int
-    $paymentStatus: String
-    $paymentMethod: String
-    $pageSize: Int
-    $currentPage: Int
-  ) {
-    kleverPaymentHistory(
-      orderId: $orderId
-      paymentStatus: $paymentStatus
-      paymentMethod: $paymentMethod
-      pageSize: $pageSize
-      currentPage: $currentPage
-    ) {
-      items {
-        id
-        receipt_no
-        payment_date
-        order_increment_id
-        invoice_amount
-        paid_payment
-        due_payment
-        payment_status
-      }
-      total_count
-    }
-  }
-`;
 
-export const KLEVER_PAYMENT_HISTORY_BY_ID_QUERY = /* GraphQL */ `
-  query KleverPaymentHistoryById($paymentId: Int!) {
-    kleverPaymentHistoryById(paymentId: $paymentId) {
-      id
-      receipt_no
-      payment_date
-      order_id
-      order_increment_id
-      paid_payment
-      payment_method
-      payment_status
-      remarks
-    }
-  }
-`;
-
-export const KLEVER_PAYMENT_HISTORY_RECEIPT_QUERY = /* GraphQL */ `
-  query KleverPaymentHistoryReceipt($paymentId: Int!) {
-    kleverPaymentHistoryReceipt(paymentId: $paymentId) {
+// Forecast file content for download (GraphQL: kleverForecastFile(forecastId: Int!)). Returns
+// base64 the route decodes + streams. Replaces the REST/blob forecast download.
+export const KLEVER_FORECAST_FILE_QUERY = /* GraphQL */ `
+  query KleverForecastFile($forecastId: Int!) {
+    kleverForecastFile(forecastId: $forecastId) {
       success
       filename
-      base64
       mime_type
-    }
-  }
-`;
-
-export const KLEVER_SOURCE_PERMISSIONS_QUERY = /* GraphQL */ `
-  query KleverSourcePermissions {
-    kleverSourcePermissions {
-      has_restrictions
-      total_count
-      permitted_store_ids
-      permitted_stores {
-        store_id
-        store_code
-        store_name
-        store_url
-        website_name
-        group_name
-        is_active
-      }
-    }
-  }
-`;
-
-export const KLEVER_SOURCE_PERMISSION_CHECK_QUERY = /* GraphQL */ `
-  query KleverSourcePermissionCheck($storeId: Int!) {
-    kleverSourcePermissionCheck(storeId: $storeId) {
-      allowed
-      store_id
-      store_code
-      redirect_store_code
-      redirect_url
-      message
-    }
-  }
-`;
-
-export const KLEVER_SOURCE_AVAILABLE_STORES_QUERY = /* GraphQL */ `
-  query KleverSourceAvailableStores {
-    kleverSourceAvailableStores {
-      store_id
-      store_code
-      store_name
-      store_url
-      website_name
-      group_name
-      is_active
+      base64
     }
   }
 `;
@@ -1053,23 +976,6 @@ export const KLEVER_NOTIFICATIONS_QUERY = /* GraphQL */ `
   }
 `;
 
-export const KLEVER_FAVORITE_PRODUCTS_QUERY = /* GraphQL */ `
-  query KleverFavoriteProducts($pageSize: Int, $currentPage: Int) {
-    kleverFavoriteProducts(pageSize: $pageSize, currentPage: $currentPage) {
-      products {
-        product_id
-        sku
-        name
-        brand
-        image_url
-        final_price
-        stock_status
-        product_url
-      }
-      total_count
-    }
-  }
-`;
 
 export const KLEVER_CHECKOUT_TOTALS_QUERY = /* GraphQL */ `
   query KleverCheckoutTotals {
@@ -1200,41 +1106,11 @@ export const KLEVER_CHECKOUT_SUCCESS_QUERY = /* GraphQL */ `
   }
 `;
 
-export const KLEVER_DISCOUNT_POPUP_QUERY = /* GraphQL */ `
-  query KleverDiscountPopup {
-    kleverDiscountPopup {
-      applied_coupons {
-        code
-        discount_amount
-        rule_name
-      }
-      promo_rules {
-        rule_id
-        rule_type
-        max_qty
-        discount_amount
-        items {
-          sku
-          name
-          product_id
-          image_url
-          original_price
-          promo_price
-          available_qty
-        }
-      }
-      common_qty
-      selection_method
-      gifts_counter_enabled
-      auto_open_popup
-      total_discount
-      subtotal
-      grand_total
-      currency_code
-    }
-  }
-`;
 
+
+// Klever custom storefront menu (now exposed on the schema). Fields: code, label, url,
+// is_visible, sort_order. NOTE: `category_id` is NOT a field on KleverMenuItem
+// ("Cannot query field …") — removed. Backs /api/kleverapi/menu.
 export const KLEVER_MENU_ITEMS_QUERY = /* GraphQL */ `
   query KleverMenuItems {
     kleverMenuItems {
@@ -1243,7 +1119,6 @@ export const KLEVER_MENU_ITEMS_QUERY = /* GraphQL */ `
       url
       is_visible
       sort_order
-      category_id
     }
   }
 `;
@@ -1302,3 +1177,64 @@ export const KLEVER_MULTISHIPPING_SUCCESS_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+// ─── Category products (kleverCategoryProducts) — backs /api/category-products ───
+// Shared arg declaration / arg use / product field selection so the "with filters"
+// and "products only" variants can't drift apart. All filter args are optional/nullable;
+// unset variables are simply ignored by the resolver. (Moved here from the route to
+// follow the no-inline-GraphQL convention. Validated live against the schema.)
+const _CATPROD_ARGS_DECL = `
+    $categoryId: Int!, $pageSize: Int, $currentPage: Int,
+    $brand: String, $color: String, $origin: String, $manufacturer: String,
+    $productGroup: String, $warrantyPeriod: String, $newArrivals: String,
+    $itemCode: String, $oemMarking: String, $pattern: String, $year: String,
+    $types: String, $offers: String, $width: String, $height: String,
+    $rim: String, $runflat: String, $partsCategory: String, $searchQuery: String,
+    $minPrice: Float, $maxPrice: Float, $sortBy: String, $sortOrder: String`;
+const _CATPROD_ARGS_USE = `
+      categoryId: $categoryId, pageSize: $pageSize, currentPage: $currentPage,
+      brand: $brand, color: $color, origin: $origin, manufacturer: $manufacturer,
+      productGroup: $productGroup, warrantyPeriod: $warrantyPeriod, newArrivals: $newArrivals,
+      itemCode: $itemCode, oemMarking: $oemMarking, pattern: $pattern, year: $year,
+      types: $types, offers: $offers, width: $width, height: $height,
+      rim: $rim, runflat: $runflat, partsCategory: $partsCategory, searchQuery: $searchQuery,
+      minPrice: $minPrice, maxPrice: $maxPrice, sortBy: $sortBy, sortOrder: $sortOrder`;
+const _CATPROD_PRODUCT_FIELDS = `
+      total_count
+      page_size
+      current_page
+      total_pages
+      products {
+        product_id sku name brand tyre_size image_url product_url
+        final_price regular_price old_price special_price show_old_price
+        customer_price customer_group_price offer origin pattern product_group
+        warranty_period year types item_code oem_marking action is_action
+        is_in_stock stock_label stock_qty stock_color price_selection_reason
+      }`;
+
+// Full variant — products + layered-nav filters.
+export const KLEVER_CATEGORY_PRODUCTS_WITH_FILTERS_QUERY = /* GraphQL */ `
+  query CategoryProducts(${_CATPROD_ARGS_DECL}) {
+    kleverCategoryProducts(${_CATPROD_ARGS_USE}) {
+      ${_CATPROD_PRODUCT_FIELDS}
+      filters {
+        code
+        label
+        record_count
+        options { value label count }
+      }
+    }
+  }
+`;
+
+// Products-only variant — omits the `filters` block. The backend computes products and
+// filters as separate additive passes (~9s each), so dropping filters roughly halves
+// latency. Filters are fetched separately via /api/category-filter-options.
+export const KLEVER_CATEGORY_PRODUCTS_ONLY_QUERY = /* GraphQL */ `
+  query CategoryProductsOnly(${_CATPROD_ARGS_DECL}) {
+    kleverCategoryProducts(${_CATPROD_ARGS_USE}) {
+      ${_CATPROD_PRODUCT_FIELDS}
+    }
+  }
+`;
+

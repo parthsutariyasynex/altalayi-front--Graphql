@@ -125,6 +125,42 @@ export const CREATE_CUSTOMER_ADDRESS_MUTATION = /* GraphQL */ `
   }
 `;
 
+// Native Magento profile update (firstname/lastname/email). updateCustomer(input: CustomerInput)
+// → CustomerOutput { customer }. Works through /graphql (no REST). Note: changing `email` may
+// require `password` in the input depending on store config — the route passes it through if sent.
+export const UPDATE_CUSTOMER_MUTATION = /* GraphQL */ `
+  mutation UpdateCustomer($input: CustomerInput!) {
+    updateCustomer(input: $input) {
+      customer {
+        firstname
+        lastname
+        email
+      }
+    }
+  }
+`;
+
+// Native Magento wishlist add/remove — back the GraphQL /favorite-products write paths.
+// addProductsToWishlist needs a SKU (WishlistItemInput.sku is required); remove takes the
+// wishlist ITEM id (items_v2.items[].id), not the product id.
+export const ADD_PRODUCTS_TO_WISHLIST_MUTATION = /* GraphQL */ `
+  mutation AddProductsToWishlist($wishlistId: ID!, $items: [WishlistItemInput!]!) {
+    addProductsToWishlist(wishlistId: $wishlistId, wishlistItems: $items) {
+      wishlist { id items_count }
+      user_errors { code message }
+    }
+  }
+`;
+
+export const REMOVE_PRODUCTS_FROM_WISHLIST_MUTATION = /* GraphQL */ `
+  mutation RemoveProductsFromWishlist($wishlistId: ID!, $itemIds: [ID!]!) {
+    removeProductsFromWishlist(wishlistId: $wishlistId, wishlistItemsIds: $itemIds) {
+      wishlist { id items_count }
+      user_errors { code message }
+    }
+  }
+`;
+
 export const UPDATE_CUSTOMER_ADDRESS_MUTATION = /* GraphQL */ `
   mutation UpdateCustomerAddress($id: Int!, $input: CustomerAddressInput!) {
     updateCustomerAddress(id: $id, input: $input) {
@@ -152,61 +188,34 @@ export const DELETE_CUSTOMER_ADDRESS_MUTATION = /* GraphQL */ `
   }
 `;
 
+// Schema: kleverCreateSubaccount(input: KleverSubaccountInput!) — single `input` object,
+// NOT flat args. Input fields: email/firstname/lastname (String!), password/taxvat (String),
+// is_active/permissions (Int — `permissions` is a power-of-two bitmask). Return omits the
+// `permissions` field (backend types it [Int] but returns strings → execution error).
 export const KLEVER_CREATE_SUBACCOUNT_MUTATION = /* GraphQL */ `
-  mutation KleverCreateSubaccount(
-    $firstname: String!
-    $lastname: String!
-    $email: String!
-    $password: String!
-    $isActive: Int
-    $permissions: [Int]
-    $taxvat: String
-  ) {
-    kleverCreateSubaccount(
-      firstname: $firstname
-      lastname: $lastname
-      email: $email
-      password: $password
-      isActive: $isActive
-      permissions: $permissions
-      taxvat: $taxvat
-    ) {
+  mutation CreateSubaccount($input: KleverSubaccountInput!) {
+    kleverCreateSubaccount(input: $input) {
       id
       customer_id
       firstname
       lastname
       email
       is_active
-      permissions
-      status
+      status  
       taxvat
-      created_at
+      created_at  
       updated_at
     }
   }
 `;
 
+// Schema: kleverUpdateSubaccount(subaccountId: Int!, input: KleverSubaccountInput!) — fields go
+// inside `input` (snake_case; permissions is [Int]), NOT flat args. The route sends
+// variables: { subaccountId, input }. (permissions is now [Int] on both input + output and
+// resolves cleanly — the old [Int]-vs-string error is fixed backend-side.)
 export const KLEVER_UPDATE_SUBACCOUNT_MUTATION = /* GraphQL */ `
-  mutation KleverUpdateSubaccount(
-    $subaccountId: Int!
-    $firstname: String
-    $lastname: String
-    $email: String
-    $password: String
-    $isActive: Int
-    $permissions: [Int]
-    $taxvat: String
-  ) {
-    kleverUpdateSubaccount(
-      subaccountId: $subaccountId
-      firstname: $firstname
-      lastname: $lastname
-      email: $email
-      password: $password
-      isActive: $isActive
-      permissions: $permissions
-      taxvat: $taxvat
-    ) {
+  mutation UpdateSubaccount($subaccountId: Int!, $input: KleverSubaccountInput!) {
+    kleverUpdateSubaccount(subaccountId: $subaccountId, input: $input) {
       id
       customer_id
       firstname
@@ -231,47 +240,20 @@ export const KLEVER_DELETE_SUBACCOUNT_MUTATION = /* GraphQL */ `
   }
 `;
 
+// Log in as a subaccount (impersonate). Takes subaccountId: Int!. Returns
+// KleverLoginResponse { token, customer } — token at the top level, which is where the
+// subaccounts manage page reads it from. Minimal customer fields (the impersonated session
+// re-fetches its own profile). Auth-changing → schema-validated only, NOT executed.
+// (Previously selected invalid CustomerAddress fields like `is_default_billing` — fixed.)
 export const KLEVER_LOGIN_AS_SUBACCOUNT_MUTATION = /* GraphQL */ `
   mutation KleverLoginAsSubaccount($subaccountId: Int!) {
     kleverLoginAsSubaccount(subaccountId: $subaccountId) {
       token
       customer {
-        addresses {
-          city
-          company
-          country_id
-          customer_id
-          firstname
-          id
-          is_default_billing
-          is_default_shipping
-          lastname
-          postcode
-          region
-          region_id
-          street
-          telephone
-          vat_id
-        }
-        created_at
-        custom_attributes {
-          attribute_code
-          value
-        }
-        default_billing
-        default_shipping
-        dob
+        id
         email
         firstname
-        gender
-        group_id
-        id
         lastname
-        middlename
-        prefix
-        suffix
-        taxvat
-        updated_at
       }
     }
   }
@@ -339,49 +321,6 @@ export const REMOVE_COUPON_FROM_CART_MUTATION = /* GraphQL */ `
   }
 `;
 
-export const KLEVER_PAYMENT_HISTORY_SAVE_MUTATION = /* GraphQL */ `
-  mutation KleverPaymentHistorySave(
-    $orderId: Int!
-    $paidPayment: Float!
-    $paymentDate: String
-    $paymentMethod: String
-    $sapInvoiceNo: String
-    $remarks: String
-    $comment1: String
-    $comment2: String
-    $signedDocBase64: String
-    $signedDocName: String
-  ) {
-    kleverPaymentHistorySave(
-      orderId: $orderId
-      paidPayment: $paidPayment
-      paymentDate: $paymentDate
-      paymentMethod: $paymentMethod
-      sapInvoiceNo: $sapInvoiceNo
-      remarks: $remarks
-      comment1: $comment1
-      comment2: $comment2
-      signedDocBase64: $signedDocBase64
-      signedDocName: $signedDocName
-    ) {
-      success
-      message
-      payment_id
-      receipt_no
-    }
-  }
-`;
-
-export const KLEVER_PAYMENT_HISTORY_EDIT_MUTATION = /* GraphQL */ `
-  mutation KleverPaymentHistoryEdit($paymentId: Int!, $paidPayment: Float, $remarks: String) {
-    kleverPaymentHistoryEdit(paymentId: $paymentId, paidPayment: $paidPayment, remarks: $remarks) {
-      success
-      message
-      payment_id
-      receipt_no
-    }
-  }
-`;
 
 export const KLEVER_UPLOAD_FORECAST_MUTATION = /* GraphQL */ `
   mutation KleverUploadForecast($fileName: String!, $fileContent: String!) {
@@ -390,30 +329,23 @@ export const KLEVER_UPLOAD_FORECAST_MUTATION = /* GraphQL */ `
         forecast_id
         file_name
         file_url
+        uploaded_date
       }
       total_count
+      page_size
+      current_page
+      total_pages
       message
     }
   }
 `;
 
+// Schema: kleverSubmitEnquiry(input: KleverEnquiryInput!): Boolean — single `input` object
+// (snake_case fields: product_name!, product_sku!, qty!, comment, phone, notify_stock), NOT
+// flat args; returns a scalar Boolean (no sub-selection). The route sends variables: { input }.
 export const KLEVER_SUBMIT_ENQUIRY_MUTATION = /* GraphQL */ `
-  mutation KleverSubmitEnquiry(
-    $productSku: String!
-    $productName: String!
-    $qty: Int!
-    $comment: String
-    $phone: String
-    $notifyStock: Boolean
-  ) {
-    kleverSubmitEnquiry(
-      productSku: $productSku
-      productName: $productName
-      qty: $qty
-      comment: $comment
-      phone: $phone
-      notifyStock: $notifyStock
-    )
+  mutation SubmitEnquiry($input: KleverEnquiryInput!) {
+    kleverSubmitEnquiry(input: $input)
   }
 `;
 
@@ -546,9 +478,12 @@ export const KLEVER_QUICK_ORDER_UPLOAD_CSV_MUTATION = /* GraphQL */ `
   }
 `;
 
+// Schema op is kleverMarkNotificationRead (NOT ...AsRead). The route reads
+// json.data.kleverMarkNotificationRead, so the field name here must match. Export const name
+// kept for the route's existing import.
 export const KLEVER_MARK_NOTIFICATION_AS_READ_MUTATION = /* GraphQL */ `
-  mutation KleverMarkNotificationAsRead($notificationId: Int!) {
-    kleverMarkNotificationAsRead(notificationId: $notificationId) {
+  mutation MarkNotificationRead($notificationId: Int!) {
+    kleverMarkNotificationRead(notificationId: $notificationId) {
       success
       message
     }
@@ -733,21 +668,15 @@ export const KLEVER_ADD_PROMO_ITEMS_MUTATION = /* GraphQL */ `
   }
 `;
 
+// The live schema takes a single input object — kleverUpdateBusinessOverview(input:
+// KleverBusinessOverviewInput!) with snake_case fields: total_employees, trucks,
+// annual_revenue, business_model, products_offered (all String). The previous const used
+// flat args (and invalid // comments) which the schema rejects. Send ALL fields (even
+// empty strings) — the resolver reads each without isset, so omitting one throws a PHP
+// "Undefined index" notice.
 export const KLEVER_UPDATE_BUSINESS_OVERVIEW_MUTATION = /* GraphQL */ `
-  mutation KleverUpdateBusinessOverview(
-    $totalEmployees: String
-    $trucks: String
-    $annualRevenue: String
-    $businessModel: String
-    $productsOffered: String
-  ) {
-    kleverUpdateBusinessOverview(
-      totalEmployees: $totalEmployees
-      trucks: $trucks
-      annualRevenue: $annualRevenue
-      businessModel: $businessModel
-      productsOffered: $productsOffered
-    ) {
+  mutation UpdateBusinessOverview($input: KleverBusinessOverviewInput!) {
+    kleverUpdateBusinessOverview(input: $input) {
       success
       message
     }

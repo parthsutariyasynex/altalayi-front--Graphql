@@ -1,55 +1,63 @@
-import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_ORDER_ATTACHMENTS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function GET(request: Request) {
+// GET — order attachments with optional document_type / invoice_due filters
+// (GraphQL: kleverOrderAttachments(orderId: Int!)). Replaces REST /order/attachments.
+// The op accepts only orderId, so the document_type / invoice_due filters (which the REST
+// endpoint took as query params) are applied in-route on the returned items — those carry
+// document_type / invoice_due. Returns { attachments: [...] } (same shape as the per-order
+// attachments route).
+export async function GET(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        const { searchParams } = new URL(request.url);
-        const order_id = searchParams.get("order_id");
-        const document_type = searchParams.get("document_type");
-        const invoice_due = searchParams.get("invoice_due");
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        const authHeader = request.headers.get("Authorization");
+        const sp = new URL(request.url).searchParams;
+        const orderIdParam = sp.get("order_id");
+        const documentType = sp.get("document_type");
+        const invoiceDue = sp.get("invoice_due");
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        const orderId = parseInt(orderIdParam || "", 10);
+        if (Number.isNaN(orderId)) {
+            return NextResponse.json({ message: "order_id is required" }, { status: 400 });
         }
 
-        // Construct query parameters for Magento
-        const params = new URLSearchParams();
-        if (order_id) params.append("order_id", order_id);
-        if (document_type && document_type !== "All") params.append("document_type", document_type);
-        if (invoice_due && invoice_due !== "All") params.append("invoice_due", invoice_due);
-
-        const queryString = params.toString();
-        const magentoUrl = `${BASE_URL}/order/attachments${queryString ? `?${queryString}` : ""}`;
-
-        const response = await fetch(magentoUrl, {
-            method: "GET",
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: authHeader,
-                platform: "web",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ query: KLEVER_ORDER_ATTACHMENTS_QUERY, variables: { orderId } }),
             cache: "no-store",
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            return NextResponse.json(
-                { message: data.message || `Magento returned ${response.status}` },
-                { status: response.status }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[order/attachments] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to fetch order attachments" }, { status: 502 });
         }
 
-        return NextResponse.json(data);
+        let attachments: any[] = Array.isArray(json?.data?.kleverOrderAttachments?.attachments)
+            ? json.data.kleverOrderAttachments.attachments
+            : [];
+
+        // Apply the legacy query-param filters in-route (the op has no filter args).
+        if (documentType && documentType !== "All") {
+            attachments = attachments.filter((a) => a?.document_type === documentType);
+        }
+        if (invoiceDue && invoiceDue !== "All") {
+            attachments = attachments.filter((a) => String(a?.invoice_due) === invoiceDue);
+        }
+
+        return NextResponse.json({ attachments });
     } catch (error: any) {
-        return NextResponse.json(
-            { message: error.message || "Server error fetching order attachments" },
-            { status: 500 }
-        );
+        console.error("[order/attachments] error:", error.message);
+        return NextResponse.json({ message: error.message || "Server error fetching order attachments" }, { status: 500 });
     }
 }

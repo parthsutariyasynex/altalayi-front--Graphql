@@ -226,7 +226,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
     const endItem = Math.min(currentPage * pageSize, totalCount);
 
     if (loading && favProducts.length === 0) {
-        return <FavouriteProductsSkeleton count={8} />;
+        return <FavouriteProductsSkeleton count={10} />;
     }
 
     const totalPages = Math.ceil(totalCount / pageSize);
@@ -246,7 +246,9 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                         </h1>
                     )}
                 </div>
-                <div className="h-[2px] flex-1 bg-gradient-to-r from-yellow-400 to-transparent"></div>
+                {!React.isValidElement(title) && (
+                    <div className="h-[2px] flex-1 bg-gradient-to-r from-yellow-400 to-transparent"></div>
+                )}
             </div>
 
             {/* Mobile/Tablet Card List */}
@@ -302,7 +304,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                     {!isOutOfStock ? (
                                         <button onClick={() => onAddToCart(product)} disabled={addingToCart === product.sku} className={`h-9 px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] font-black uppercase shadow-sm active:scale-95 cursor-pointer flex-shrink-0 bg-[#f5a623] text-black`}>
-                                            {addingToCart === product.sku ? <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div> : <><ShoppingCart size={14} strokeWidth={2.5} /></>}
+                                            <ShoppingCart size={14} strokeWidth={2.5} />
                                         </button>
                                     ) : (
                                         <button onClick={() => { setInquiryProduct(product); setIsInquiryModalOpen(true); }} className="h-9 px-2.5 bg-[#f5a623] text-black rounded-lg flex items-center gap-1.5 text-[11px] font-black uppercase shadow-sm active:scale-95 cursor-pointer flex-shrink-0">
@@ -310,7 +312,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                                         </button>
                                     )}
                                     <button onClick={() => handleRemove(product)} disabled={removing === product.product_id} className={`w-9 h-9 rounded-lg flex items-center justify-center active:scale-95 cursor-pointer flex-shrink-0 ${removing === product.product_id ? "bg-gray-100 text-gray-400" : "bg-white text-gray-400 border border-gray-100 hover:text-red-500"}`}>
-                                        {removing === product.product_id ? <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin"></div> : <Trash2 size={16} strokeWidth={2.5} />}
+                                        <Trash2 size={16} strokeWidth={2.5} />
                                     </button>
                                 </div>
                             </div>
@@ -451,11 +453,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                                                             className="w-8 h-8 bg-[#f5a623] hover:bg-[#e0951d] text-black rounded-md flex items-center justify-center shadow-sm active:scale-95 transition-all disabled:opacity-50"
                                                             title={t("m.add-to-cart")}
                                                         >
-                                                            {addingToCart === product.sku ? (
-                                                                <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                                                            ) : (
-                                                                <ShoppingCart size={15} strokeWidth={2.5} />
-                                                            )}
+                                                            <ShoppingCart size={15} strokeWidth={2.5} />
                                                         </button>
                                                     ) : (
                                                         <button
@@ -473,11 +471,7 @@ export default function FavouriteProducts({ title }: { title?: React.ReactNode }
                                                         className={`w-8 h-8 rounded-md flex items-center justify-center active:scale-95 cursor-pointer border transition-colors ${removing === product.product_id ? "bg-gray-100 text-gray-400 border-gray-100" : "bg-white text-gray-400 border-gray-200 hover:text-red-500 hover:border-red-100"}`}
                                                         title={t("m.remove-from-wishlist")}
                                                     >
-                                                        {removing === product.product_id ? (
-                                                            <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
-                                                        ) : (
-                                                            <Trash2 size={16} strokeWidth={2.5} />
-                                                        )}
+                                                        <Trash2 size={16} strokeWidth={2.5} />
                                                     </button>
                                                 </div>
                                             </td>

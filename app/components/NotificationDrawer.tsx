@@ -130,11 +130,7 @@ export default function NotificationDrawer({ isOpen, onClose }: NotificationDraw
                                             className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-black hover:text-white text-gray-400 rounded-full transition-all flex-shrink-0 disabled:opacity-50"
                                             aria-label="Remove notification"
                                         >
-                                            {deletingIds.includes(item.notification_id) ? (
-                                                <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                                            ) : (
-                                                <X size={12} strokeWidth={3} />
-                                            )}
+                                            <X size={12} strokeWidth={3} />
                                         </button>
                                     </div>
 

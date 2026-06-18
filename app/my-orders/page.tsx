@@ -11,7 +11,7 @@ import Sidebar from "@/components/Sidebar";
 import Filters from "@/components/Filters";
 import OrdersTable, { Order } from "@/components/OrdersTable";
 import Pagination from "@/components/Pagination";
-import { MyOrdersSkeleton, SidebarSkeleton } from "@/components/skeletons";
+import { MyOrdersSkeleton, SidebarSkeleton, OrdersTableSkeleton } from "@/components/skeletons";
 import { useCart } from "@/modules/cart/context/CartContext";
 import { toast } from "react-hot-toast";
 
@@ -120,13 +120,12 @@ function MyOrdersPageContent() {
     const statusCounts = useMemo(() => {
         const counts: Record<string, number> = { "All": allOrdersForCounts.length };
         allOrdersForCounts.forEach(order => {
-            const rawStatus = order.status || "";
-            // Normalize status to match what's in the filter options (usually lowercase or specific code)
-            const s = rawStatus.toLowerCase();
-            counts[s] = (counts[s] || 0) + 1;
-
-            // Also handle human-readable status codes if they differ
-            if (rawStatus === "approval_pending") counts["approval_pending"] = (counts["approval_pending"] || 0) + 1;
+            // Count by status_code (the route normalizes the native status LABEL → the filter
+            // dropdown's CODE, e.g. "Check Pending" → "approval_pending"), so counts key on the
+            // same value the dropdown uses. Fall back to a lowercased status if code is absent.
+            const code = order.status_code || (order.status || "").toLowerCase();
+            if (!code) return;
+            counts[code] = (counts[code] || 0) + 1;
         });
         return counts;
     }, [allOrdersForCounts]);
@@ -176,6 +175,8 @@ function MyOrdersPageContent() {
             if (!res.ok) throw new Error(data.message || "Failed to fetch orders");
 
             const items: any[] = data.items || [];
+            // The /my-orders route already returns orders globally sorted newest-first and
+            // sliced to this page, so render as-is.
             setOrders(items.map(mapOrder));
             setTotalItems(data.total_count || items.length);
         } catch (err: any) {
@@ -264,7 +265,10 @@ function MyOrdersPageContent() {
 
         const toastId = toast.loading(t("m.add-to-cart"));
         try {
-            const res = await fetch(`/api/kleverapi/order/${order.entity_id}/reorder`, {
+            // reorderItems(orderNumber: String!) needs the order NUMBER (increment_id, e.g. "BT…"),
+            // NOT the entity_id (which is now the base64 GraphQL order id).
+            const orderNumber = order.increment_id || order.id;
+            const res = await fetch(`/api/kleverapi/order/${encodeURIComponent(orderNumber)}/reorder`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -364,7 +368,6 @@ function MyOrdersPageContent() {
                         >
                             {isExporting ? (
                                 <>
-                                    <div className="animate-spin h-3.5 w-3.5 border-2 border-black border-t-transparent rounded-full"></div>
                                     {t("orders.exporting")}
                                 </>
                             ) : (
@@ -389,16 +392,12 @@ function MyOrdersPageContent() {
                         statusCounts={statusCounts}
                     />
 
-                    {/* Standard Magento Check: If totalCount=0 and searched, show nothing or reset.
-                        But here we just show no orders.
-                    */}
-                    {!isLoading && !hasFetched && orders.length === 0 && (
-                        <div className="text-gray-500 py-10 md:py-20 text-center animate-pulse">
-                            {t("orders.initializingDashboard")}
-                        </div>
-                    )}
-
-                    {hasFetched && orders.length === 0 && !isLoading ? (
+                    {/* Loading (initial mount or fetch) with no data yet → show the table skeleton
+                        in-place. The real chrome (sidebar/heading/export/filters) stays rendered,
+                        so the layout is the full page and there's no shift when data arrives. */}
+                    {((isLoading || !hasFetched) && orders.length === 0) ? (
+                        <OrdersTableSkeleton rows={pageSize} />
+                    ) : (hasFetched && orders.length === 0 && !isLoading) ? (
                         <div className="py-12 bg-white border border-gray-100 rounded-lg shadow-sm px-4 md:px-10">
                             <div className="mb-4">
                                 <button

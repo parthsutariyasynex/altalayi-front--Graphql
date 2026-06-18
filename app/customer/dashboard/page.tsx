@@ -126,13 +126,11 @@ export default function DashboardPage() {
 
     if (loading || loadingDashboard) {
         return (
-            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
-                <div className="flex flex-col lg:flex-row flex-1 w-full">
-                    <SidebarSkeleton />
-                    <main className="flex-1 min-w-0">
-                        <DashboardSkeleton />
-                    </main>
-                </div>
+            <div className="flex-1 flex flex-col lg:flex-row min-h-0 w-full bg-[#fcfcfc] font-rubik">
+                <SidebarSkeleton />
+                <main className="flex-1 min-w-0">
+                    <DashboardSkeleton />
+                </main>
             </div>
         );
     }
@@ -295,9 +293,9 @@ export default function DashboardPage() {
                             <section className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                                 {/* Product Group Filter */}
                                 <div className="flex flex-col gap-4">
-                                    <h3 className="text-[13px] font-black text-black uppercase tracking-widest ltr:text-left rtl:text-right opacity-60">{t("dashboard.productGroupLabel")}</h3>
+                                    <h3 className="text-[13px] font-black text-black uppercase tracking-widest ltr:text-left rtl:text-right">{t("dashboard.productGroupLabel")}</h3>
                                     <div className="bg-white border border-[#ebebeb] rounded-xl shadow-sm overflow-hidden group hover:shadow-md transition-all">
-                                        <div className="bg-gray-50 border-b border-[#ebebeb] h-12 px-5 flex items-center relative">
+                                        <div className="bg-brand-yellow border-b border-brand-yellow h-12 px-5 flex items-center relative">
                                             <PortalDropdown
                                                 value={selectedProductGroup}
                                                 onChange={(val) => setSelectedProductGroup(val)}
@@ -322,9 +320,9 @@ export default function DashboardPage() {
 
                                 {/* Tyre Size Filter */}
                                 <div className="flex flex-col gap-4">
-                                    <h3 className="text-[13px] font-black text-black uppercase tracking-widest ltr:text-left rtl:text-right opacity-60">{t("dashboard.tyreSizeLabel")}</h3>
+                                    <h3 className="text-[13px] font-black text-black uppercase tracking-widest ltr:text-left rtl:text-right">{t("dashboard.tyreSizeLabel")}</h3>
                                     <div className="bg-white border border-[#ebebeb] rounded-xl shadow-sm overflow-hidden group hover:shadow-md transition-all">
-                                        <div className="bg-gray-50 border-b border-[#ebebeb] h-12 px-5 flex items-center relative">
+                                        <div className="bg-brand-yellow border-b border-brand-yellow h-12 px-5 flex items-center relative">
                                             <PortalDropdown
                                                 value={selectedTyreSize}
                                                 onChange={(val) => setSelectedTyreSize(val)}
@@ -480,9 +478,9 @@ export default function DashboardPage() {
 function QtyCard({ label, value, isRtl }: { label: string; value: string; isRtl: boolean }) {
     return (
         <div className="bg-white border border-[#ebebeb] rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all transform hover:-translate-y-1 group">
-            <div className="bg-gray-50 h-10 px-5 flex justify-between items-center text-black border-b border-[#ebebeb] group-hover:bg-yellow-50 transition-colors">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-yellow-700">{label}</span>
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
+            <div className="bg-brand-yellow h-10 px-5 flex justify-between items-center text-black border-b border-brand-yellow transition-colors">
+                <span className="text-[10px] font-black uppercase tracking-widest text-black">{label}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-black"></div>
             </div>
             <div className="py-10 px-4 text-center">
                 <p className="text-4xl font-black text-black tracking-tighter">{value}</p>
@@ -494,9 +492,9 @@ function QtyCard({ label, value, isRtl }: { label: string; value: string; isRtl:
 function ValueCard({ label, value, isRtl }: { label: string; value: string; isRtl: boolean }) {
     return (
         <div className="bg-white border border-[#ebebeb] rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all transform hover:-translate-y-1 group">
-            <div className="bg-gray-50 h-10 px-5 flex justify-between items-center text-black border-b border-[#ebebeb] group-hover:bg-yellow-50 transition-colors">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-yellow-700">{label}</span>
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
+            <div className="bg-brand-yellow h-10 px-5 flex justify-between items-center text-black border-b border-brand-yellow transition-colors">
+                <span className="text-[10px] font-black uppercase tracking-widest text-black">{label}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-black"></div>
             </div>
             <div className="py-10 px-4 text-center">
                 <p className="text-2xl font-black text-black tracking-tight">{value}</p>

@@ -5,7 +5,7 @@ import { useLocalePath } from "@/hooks/useLocalePath";
 import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, Package, ArrowRight, Home, ShoppingBag, Loader2 } from "lucide-react";
+import { CheckCircle, Package, ArrowRight, Home, ShoppingBag } from "lucide-react";
 import { useCheckout } from "@/modules/checkout/hooks/useCheckout";
 import { toast } from "react-hot-toast";
 import { CheckoutSuccessSkeleton } from "@/components/skeletons";
@@ -31,8 +31,21 @@ const CheckoutSuccessContent = () => {
     const [hasFetched, setHasFetched] = useState(false);
 
     useEffect(() => {
-        if (!orderId || hasFetched) {
-            if (!orderId) router.push(lp("/"));
+        if (hasFetched) return;
+
+        // If the order_id is missing from the URL (e.g. the place-order response didn't include
+        // one), DON'T bounce to home when we have a just-placed order saved in localStorage —
+        // show the success page from that instead. Only redirect home if there's truly nothing.
+        if (!orderId) {
+            const saved = localStorage.getItem('last_order_summary');
+            if (saved) {
+                try { setOrderData(JSON.parse(saved)); } catch { /* ignore */ }
+                setIsLoading(false);
+                localStorage.removeItem('last_order_summary');
+                setHasFetched(true);
+            } else {
+                router.push(lp("/"));
+            }
             return;
         }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { getSession } from "next-auth/react";
+import { getAuthToken } from "@/lib/api/api-client";
 import type { CartItem } from "@/modules/cart/context/CartContext";
 import type {
     Warehouse,
@@ -9,11 +9,6 @@ import type {
     MultiShippingAssignment,
     ItemValidation,
 } from "../types";
-
-async function getAuthToken(): Promise<string | null> {
-    const session: any = await getSession();
-    return session?.accessToken ?? null;
-}
 
 export function useMultiShipping() {
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);

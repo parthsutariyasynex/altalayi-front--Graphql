@@ -6,7 +6,7 @@ import CartSummary from "./CartSummary";
 import CartActions from "./CartActions";
 import Navbar from "@/app/components/Navbar";
 import Link from "next/link";
-import { ArrowRight, ShoppingBag, Loader2 } from "lucide-react";
+import { ArrowRight, ShoppingBag } from "lucide-react";
 import { useCart } from "@/modules/cart/hooks/useCart";
 import { useCheckout } from "@/modules/checkout/hooks/useCheckout";
 import { useRouter } from "next/navigation";
@@ -139,7 +139,7 @@ const CartPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-[#FDFDFD] pb-4 lg:pb-10">
             {/* Main Content Container */}
-            <div className="max-w-[1440px] mx-auto px-4 md:px-12 pt-8 md:pt-14">
+            <div className="max-w-[1920px] mx-auto px-4 md:px-12 pt-8 md:pt-14">
 
                 {/* Breadcrumbs & Title Section */}
                 <div className="mb-10 md:mb-14 text-center">
@@ -196,7 +196,7 @@ const CartPage: React.FC = () => {
                                             className="bg-[#FFC107] text-black font-bold py-4 px-10 uppercase tracking-widest text-[10px] hover:bg-black hover:text-white transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed w-full md:w-auto shadow-none"
                                         >
                                             {isStartingMultiShipping ? (
-                                                <Loader2 className="animate-spin" size={14} />
+                                                t("common.loading")
                                             ) : (
                                                 t("cart.shipToMultiple")
                                             )}

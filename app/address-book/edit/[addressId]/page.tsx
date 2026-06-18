@@ -220,7 +220,7 @@ export default function EditAddressPage() {
                                             className="bg-[#ffb12b] hover:bg-[#e5a026] text-black text-[14px] font-bold px-6 md:px-10 py-3 uppercase transition-colors rounded-[3px] shadow-sm tracking-wide disabled:opacity-50 flex items-center justify-center w-full sm:w-auto sm:min-w-[180px]"
                                         >
                                             {saving ? (
-                                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
+                                                t("common.loading")
                                             ) : (
                                                 "SAVE ADDRESS"
                                             )}

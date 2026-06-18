@@ -151,7 +151,7 @@ export default function InquiryModal({ product, isOpen, onClose }: InquiryModalP
                             className="flex-[2] py-4 px-6 bg-yellow-400 hover:bg-yellow-500 text-black font-black rounded-lg transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 uppercase tracking-widest text-sm"
                         >
                             {isSubmitting ? (
-                                <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                                t("common.loading")
                             ) : (
                                 <>
                                     <Send size={18} strokeWidth={3} />

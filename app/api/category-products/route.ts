@@ -2,7 +2,26 @@ import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth/auth-options";
 import { NextRequest } from "next/server";
-import { getBaseUrl, getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import {
+    KLEVER_CATEGORY_PRODUCTS_WITH_FILTERS_QUERY,
+    KLEVER_CATEGORY_PRODUCTS_ONLY_QUERY,
+} from "@/src/graphql/queries";
+
+// GraphQL queries backing this route (kleverCategoryProducts) live in queries.ts:
+//  - KLEVER_CATEGORY_PRODUCTS_WITH_FILTERS_QUERY: products + layered-nav filters
+//  - KLEVER_CATEGORY_PRODUCTS_ONLY_QUERY: products only (faster; filters fetched separately)
+
+// ── Short-lived response cache ───────────────────────────────────────────────
+// The backend kleverCategoryProducts resolver is slow (~10-20s) because it scans
+// the whole category collection to build layered-nav counts. We cache the final,
+// normalized response body for a short window so repeat navigations are instant.
+//
+// IMPORTANT: the response includes customer-specific pricing (customer_price /
+// customer_group_price), so the key includes the auth token — entries are never
+// shared across customers. Guests share a "guest" bucket.
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+const responseCache = new Map<string, { body: string; expires: number }>();
 
 export async function GET(request: NextRequest) {
     try {
@@ -58,6 +77,9 @@ export async function GET(request: NextRequest) {
         }
         const page = searchParams.get("page") || "1";
         const pageSize = searchParams.get("pageSize") || "20";
+        // When true, skip the (slow) layered-nav filter computation — filters are
+        // fetched separately via /api/category-filter-options. Roughly halves latency.
+        const productsOnly = searchParams.get("productsOnly") === "1";
 
         // Group parameters: Magento's layered navigation uses key[0]=v1. 
         // We want to group these into key=v1,v2 for the category-products JSON API.
@@ -68,19 +90,55 @@ export async function GET(request: NextRequest) {
             if (!groupedParams[baseKey].includes(value)) groupedParams[baseKey].push(value);
         });
 
-        // Step 3: Construct Magento URL with simple params (matching live API format)
-        const queryParts: string[] = [
-            `categoryId=${encodeURIComponent(categoryId)}`,
-            `currentPage=${encodeURIComponent(page)}`,
-            `pageSize=${encodeURIComponent(pageSize)}`,
-            `is_ajax=1`,
-        ];
+        // Step 3: Map incoming layered-nav params to kleverCategoryProducts GraphQL args.
+        const variables: Record<string, any> = {
+            categoryId: parseInt(categoryId, 10),
+            currentPage: parseInt(page, 10) || 1,
+            pageSize: parseInt(pageSize, 10) || 20,
+        };
 
-        // Filters: mapping and joining grouped values
-        const reservedKeys = new Set(["categoryId", "page", "pageSize", "sortBy", "is_ajax"]);
+        const sortByParam = searchParams.get("sortBy");
+        if (sortByParam) variables.sortBy = sortByParam;
+        const sortOrderParam = searchParams.get("sortOrder");
+        if (sortOrderParam) variables.sortOrder = sortOrderParam;
+
+        // Frontend filter key → GraphQL argument name (the resolver mirrors the
+        // old REST attributes: tyre size = `color`, etc.).
+        const argMap: Record<string, string> = {
+            brand: "brand",
+            origin: "origin",
+            manufacturer: "manufacturer",
+            tyre_size: "color",
+            product_group: "productGroup",
+            warranty_period: "warrantyPeriod",
+            new_arrivals: "newArrivals",
+            newArrivals: "newArrivals",
+            item_code: "itemCode",
+            itemCode: "itemCode",
+            oem_marking: "oemMarking",
+            oemMarking: "oemMarking",
+            pattern: "pattern",
+            year: "year",
+            types: "types",
+            offers: "offers",
+            width: "width",
+            height: "height",
+            rim: "rim",
+            runflat: "runflat",
+            parts_category: "partsCategory",
+            partsCategory: "partsCategory",
+            searchQuery: "searchQuery",
+            minPrice: "minPrice",
+            maxPrice: "maxPrice",
+        };
+        const floatArgs = new Set(["minPrice", "maxPrice"]);
+        // Params consumed elsewhere / not resolver filter args.
+        const reservedKeys = new Set(["categoryId", "page", "pageSize", "sortBy", "sortOrder", "is_ajax", "lang"]);
 
         Object.entries(groupedParams).forEach(([key, values]) => {
             if (reservedKeys.has(key)) return;
+            const arg = argMap[key];
+            if (!arg) return; // ignore params the resolver doesn't accept
 
             const combined = values
                 .flatMap((v) => v.split(",").map((s) => s.trim()).filter(Boolean))
@@ -88,22 +146,7 @@ export async function GET(request: NextRequest) {
                 .join(",");
 
             if (combined) {
-                // Specialized mappings for specific Magento attributes
-                const keyMap: Record<string, string> = {
-                    brand: "mgs_brand",
-                    origin: "manufacturer",
-                    tyre_size: "color",
-                    product_group: "productGroup",
-                    warranty_period: "warrantyPeriod",
-                    new_arrivals: "newArrivals",
-                    item_code: "itemCode",
-                    oem_marking: "oemMarking"
-                };
-
-                const magentoKey = keyMap[key] || key;
-
-                // Append to query parts without incorrect snake_case conversion
-                queryParts.push(`${encodeURIComponent(magentoKey)}=${encodeURIComponent(combined)}`);
+                variables[arg] = floatArgs.has(arg) ? parseFloat(combined) : combined;
             }
         });
 
@@ -115,33 +158,67 @@ export async function GET(request: NextRequest) {
         const resolvedLocale = getLocaleFromRequest(request);
         console.log("[category-products] LOCALE DEBUG: lang=" + langParam + " header=" + xLocaleHeader + " cookie=" + localeCookie + " resolved=" + resolvedLocale + " referer=" + referer);
 
-        const baseUrl = getBaseUrl(request);
-        const magentoUrlStr = `${baseUrl}/category-products?${queryParts.join("&")}`;
-        console.log("[category-products] Magento URL:", magentoUrlStr);
+        // ── Cache lookup ─────────────────────────────────────────────────
+        const now = Date.now();
+        const cacheKey = `${resolvedLocale}|${token || "guest"}|${productsOnly ? "po" : "full"}|${JSON.stringify(variables)}`;
+        const cached = responseCache.get(cacheKey);
+        if (cached && cached.expires > now) {
+            console.log("[category-products] cache HIT", cacheKey);
+            return new Response(cached.body, {
+                headers: {
+                    "Content-Type": "application/json",
+                    "Cache-Control": "no-store",
+                    "X-Cache": "HIT",
+                },
+            });
+        }
 
-        const res = await fetch(magentoUrlStr, {
+        // Fetch products via Magento GraphQL (kleverCategoryProducts) instead of REST.
+        const domain = process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com";
+        console.log("[category-products] GraphQL variables:", JSON.stringify(variables));
+
+        const res = await fetch(`${domain}/graphql`, {
+            method: "POST",
             headers: {
-                ...(token && { Authorization: `Bearer ${token}` }),
                 "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "platform": "web",
+                // Select store view for locale (mirrors the old /rest/{locale}/ path).
+                Store: resolvedLocale,
+                ...(token && { Authorization: `Bearer ${token}` }),
             },
+            body: JSON.stringify({ query: productsOnly ? KLEVER_CATEGORY_PRODUCTS_ONLY_QUERY : KLEVER_CATEGORY_PRODUCTS_WITH_FILTERS_QUERY, variables }),
             cache: "no-store",
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error("Magento category-products error:", res.status, errBody);
+        const json = await res.json();
+
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("kleverCategoryProducts error:", JSON.stringify(json.errors).slice(0, 500));
             return Response.json(
-                { error: "Magento API error", details: errBody },
-                { status: res.status }
+                { error: "Magento GraphQL error", details: json.errors },
+                { status: 502 }
             );
         }
 
-        const data = await res.json();
+        const result = json?.data?.kleverCategoryProducts;
+        if (!result) {
+            return Response.json(
+                { error: "Magento GraphQL error", message: "Empty kleverCategoryProducts response" },
+                { status: 502 }
+            );
+        }
 
-        // ── Normalize Filter Keys ──
-        if (Array.isArray(data.filters)) {
+        // Shape into the structure the rest of this route (and the frontend) expects.
+        const data: any = {
+            products: Array.isArray(result.products) ? result.products : [],
+            filters: Array.isArray(result.filters) ? result.filters : [],
+            total_count: result.total_count,
+            page_size: result.page_size,
+            current_page: result.current_page,
+            total_pages: result.total_pages,
+        };
+
+        // ── Normalize Filter Keys ── (skipped in products-only mode)
+        if (!productsOnly && Array.isArray(data.filters)) {
             data.filters = data.filters.map((f: any) => {
                 let code = f.code || f.attribute_code;
 
@@ -157,10 +234,11 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // ── Dynamic Offers Filter Injection ──
+        // ── Dynamic Offers Filter Injection ── (skipped in products-only mode;
+        // the products page derives the offers group client-side instead)
         const products = Array.isArray(data.products) ? data.products : (Array.isArray(data.items) ? data.items : []);
 
-        if (products.length > 0) {
+        if (!productsOnly && products.length > 0) {
             // Collect unique offers from the products array
             const offerValues = products
                 .map((p: any) => p.offer)
@@ -212,17 +290,28 @@ export async function GET(request: NextRequest) {
         const totalCount = typeof data.total_count === "number" ? data.total_count : products.length;
         const finalFilters = Array.isArray(data.filters) ? data.filters : [];
 
-        // Return the clean, normalized structure requested
-        // Include debug info so we can see what locale was used
-        return new Response(JSON.stringify({
+        // Return the clean, normalized structure requested.
+        const responseBody = JSON.stringify({
             ...data,
             products: products,
             total_count: totalCount,
             filters: finalFilters
-        }), {
+        });
+
+        // Store in the short-lived cache so repeat navigations skip the slow backend.
+        responseCache.set(cacheKey, { body: responseBody, expires: now + CACHE_TTL_MS });
+        // Bound memory: sweep expired entries when the map grows.
+        if (responseCache.size > 200) {
+            for (const [k, v] of responseCache) {
+                if (v.expires <= now) responseCache.delete(k);
+            }
+        }
+
+        return new Response(responseBody, {
             headers: {
                 "Content-Type": "application/json",
                 "Cache-Control": "no-store, no-cache, must-revalidate",
+                "X-Cache": "MISS",
             },
         });
 

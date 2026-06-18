@@ -1,75 +1,45 @@
-import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_REMOVE_NOTIFICATION_MUTATION } from "@/src/graphql/mutations";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// POST — remove a notification (GraphQL: kleverRemoveNotification(notificationId: Int!)).
+// Returns { success, message }. NOT executed during migration — schema-validated + tsc only.
 export async function POST(
-    req: Request,
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const BASE_URL = getBaseUrl(req);
-        const { id } = await params;
-        const authHeader = req.headers.get("authorization");
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized: Missing customer token" }, { status: 401 });
+        const { id } = await params;
+        const notificationId = parseInt(id, 10);
+        if (Number.isNaN(notificationId)) {
+            return NextResponse.json({ message: "Invalid notification id" }, { status: 400 });
         }
 
-        const url = `${BASE_URL}/notifications/${id}`;
-        console.log("[Notification Remove] Calling:", url);
-
-        // Try DELETE first, then PUT, then POST — Magento APIs vary
-        let response = await fetch(url, {
-            method: "DELETE",
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                Authorization: authHeader,
                 "Content-Type": "application/json",
-                platform: "web",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ query: KLEVER_REMOVE_NOTIFICATION_MUTATION, variables: { notificationId } }),
+            cache: "no-store",
         });
 
-        if (response.status === 404 || response.status === 405) {
-            console.log("[Notification Remove] DELETE failed with", response.status, "— trying PUT");
-            response = await fetch(url, {
-                method: "PUT",
-                headers: {
-                    Authorization: authHeader,
-                    "Content-Type": "application/json",
-                    platform: "web",
-                },
-            });
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[notifications/:id/remove] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ success: false, message: json.errors[0]?.message || "Failed to remove notification" }, { status: 400 });
         }
-
-        if (response.status === 404 || response.status === 405) {
-            console.log("[Notification Remove] PUT failed with", response.status, "— trying POST");
-            response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    Authorization: authHeader,
-                    "Content-Type": "application/json",
-                    platform: "web",
-                },
-            });
-        }
-
-        const text = await response.text();
-        console.log("[Notification Remove] Status:", response.status, "Response:", text.substring(0, 300));
-
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = { success: text.trim() === "true", raw: text };
-        }
-
-        if (!response.ok) {
-            return NextResponse.json(data, { status: response.status });
-        }
-
-        return NextResponse.json(data);
+        return NextResponse.json(json?.data?.kleverRemoveNotification ?? { success: false });
     } catch (error: any) {
-        console.error("Proxy Remove Notification Error:", error);
+        console.error("[notifications/:id/remove] error:", error.message);
         return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 });
     }
 }

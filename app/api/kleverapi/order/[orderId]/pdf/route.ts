@@ -1,47 +1,53 @@
-import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_ORDER_PDF_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — order PDF (GraphQL: kleverOrderPdf(orderId: Int!)). Replaces REST /order/{orderId}/pdf.
+// Returns { success, filename, base64, mime_type } as JSON — the page reads data.base64 +
+// data.filename and decodes the base64 client-side (no binary streaming needed).
 export async function GET(
-    request: Request,
+    request: NextRequest,
     { params }: { params: Promise<{ orderId: string }> }
 ) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        const { orderId } = await params;
-        const authHeader = request.headers.get("Authorization");
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        const { orderId } = await params;
+        // orderId may be a numeric entity_id ("222") or a base64 GraphQL order id ("MjIy" → "222").
+        const id = /^\d+$/.test(orderId) ? parseInt(orderId, 10) : parseInt(Buffer.from(decodeURIComponent(orderId), "base64").toString("utf8"), 10);
+        if (Number.isNaN(id)) {
+            return NextResponse.json({ message: "Invalid order id" }, { status: 400 });
         }
 
-        const magentoUrl = `${BASE_URL}/order/${orderId}/pdf`;
-
-        const response = await fetch(magentoUrl, {
-            method: "GET",
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: authHeader,
-                platform: "web",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ query: KLEVER_ORDER_PDF_QUERY, variables: { orderId: id } }),
             cache: "no-store",
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            return NextResponse.json(
-                { message: data.message || `Magento returned ${response.status}` },
-                { status: response.status }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[order/:id/pdf] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to fetch order PDF" }, { status: 502 });
         }
 
-        return NextResponse.json(data);
+        const r = json?.data?.kleverOrderPdf;
+        if (!r?.base64) {
+            return NextResponse.json({ message: r?.success === false ? "PDF not available" : "No PDF content received" }, { status: 404 });
+        }
+        // { success, filename, base64, mime_type } — matches the page's data.base64 / data.filename reads.
+        return NextResponse.json(r);
     } catch (error: any) {
-        return NextResponse.json(
-            { message: error.message || "Server error fetching order PDF" },
-            { status: 500 }
-        );
+        console.error("[order/:id/pdf] error:", error.message);
+        return NextResponse.json({ message: error.message || "Server error fetching order PDF" }, { status: 500 });
     }
 }

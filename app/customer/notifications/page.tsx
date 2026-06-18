@@ -12,6 +12,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useLocalePath } from "@/hooks/useLocalePath";
 import { useLocale } from "@/lib/i18n/client";
 import Sidebar from "@/components/Sidebar";
+import { NotificationsSkeleton, SidebarSkeleton } from "@/components/skeletons";
 
 /**
  * Translate notification text from English to Arabic.
@@ -76,6 +77,10 @@ export default function NotificationsPage() {
 
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(15);
+    // useNotifications.isLoading starts FALSE, so without this the page would flash the empty
+    // state for one frame before the first fetch flips isLoading. firstLoadDone gates the
+    // full-page skeleton until the first fetch settles (data OR confirmed-empty).
+    const [firstLoadDone, setFirstLoadDone] = useState(false);
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -83,7 +88,7 @@ export default function NotificationsPage() {
             return;
         }
         if (status === "authenticated") {
-            fetchNotifications(pageSize, currentPage);
+            Promise.resolve(fetchNotifications(pageSize, currentPage)).finally(() => setFirstLoadDone(true));
         }
     }, [status, router, fetchNotifications, pageSize, currentPage]);
 
@@ -109,18 +114,37 @@ export default function NotificationsPage() {
     const totalPages = Math.ceil(totalCount / pageSize) || 1;
     const pageNumbers = Array.from({ length: Math.min(6, totalPages) }, (_, i) => i + 1);
 
+    // SINGLE loading owner. Until the first fetch settles, render the EXACT same wrapper the
+    // route-level fallback uses (renderSkeletonForPath's top-level notifications branch:
+    // w-full py-… → flex-row gap-0 → SidebarSkeleton + main px-… → NotificationsSkeleton). So
+    // the auth-loading skeleton, this initial-load skeleton, and the loaded page all share one
+    // identical layout → one continuous skeleton, no second flash, no shift. Pagination (after
+    // firstLoadDone, data present) keeps the real chrome and only skeletons the table body below.
+    if (!firstLoadDone) {
+        return (
+            <div className="w-full">
+                <div className="flex flex-col lg:flex-row gap-0">
+                    <SidebarSkeleton />
+                    <main className="flex-1 min-w-0 px-4 md:px-6 lg:px-8">
+                        <NotificationsSkeleton count={pageSize} />
+                    </main>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <>
 
 
-            <div className="w-full py-4 md:py-10">
+            <div className="w-full">
                 <div className="flex flex-col lg:flex-row gap-0">
                     {/* SIDEBAR */}
                     <Sidebar />
 
                     {/* MAIN CONTENT */}
                     <main className="flex-1 min-w-0 px-4 md:px-6 lg:px-8">
-                        <h1 className="text-[20px] md:text-[26px] font-black text-black mb-6 md:mb-10 uppercase tracking-wide">
+                        <h1 className="text-[20px] md:text-[24px] font-black text-black mb-6 md:mb-10 uppercase tracking-wide py-3" >
                             {t('notifications.title')}
                         </h1>
 
@@ -138,7 +162,7 @@ export default function NotificationsPage() {
                                     </thead>
                                     <tbody className="bg-white">
                                         {isLoading ? (
-                                            Array.from({ length: 5 }).map((_, i) => (
+                                            Array.from({ length: pageSize }).map((_, i) => (
                                                 <tr key={`skel-${i}`} className="border-b border-gray-100">
                                                     <td className="px-4 py-4"><div className="h-3 w-32 bg-gray-200 rounded animate-pulse" /></td>
                                                     <td className="px-4 py-4"><div className="h-3 w-48 bg-gray-200 rounded animate-pulse" /></td>
@@ -196,7 +220,7 @@ export default function NotificationsPage() {
                             <div className="md:hidden">
                                 {isLoading ? (
                                     <div className="space-y-2 py-2">
-                                        {Array.from({ length: 4 }).map((_, i) => (
+                                        {Array.from({ length: pageSize }).map((_, i) => (
                                             <div key={i} className="bg-white border border-gray-100 p-3 flex items-start gap-3">
                                                 <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
                                                 <div className="flex-1 space-y-1.5">

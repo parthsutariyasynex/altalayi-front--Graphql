@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { formatPrice } from "@/utils/helpers";
 import { toast } from "react-hot-toast";
-import { getSession } from "next-auth/react";
+import { getAuthToken } from "@/lib/api/api-client";
 import Drawer from "./Drawer";
 import Price from "./Price";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -60,8 +60,7 @@ export default function ProductEnquiryModal({
         setIsSubmitting(true);
 
         try {
-            const session: any = await getSession();
-            const token = session?.accessToken;
+            const token = await getAuthToken();
 
             const payload = {
                 productSku,
@@ -181,7 +180,7 @@ export default function ProductEnquiryModal({
                             className="w-full py-4.5 px-10 bg-[#FFB82B] hover:bg-[#EAA71D] text-black font-black rounded-lg transition-all text-sm uppercase tracking-widest shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[56px] cursor-pointer"
                         >
                             {isSubmitting ? (
-                                <div className="w-6 h-6 border-3 border-black border-t-transparent rounded-full animate-spin"></div>
+                                t("common.loading")
                             ) : (
                                 t("inquiry.submitEnquiry")
                             )}

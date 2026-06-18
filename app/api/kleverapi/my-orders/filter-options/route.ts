@@ -1,59 +1,43 @@
-import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth-options";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_ORDER_FILTER_OPTIONS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-export async function GET(request: Request) {
+// GET — order list filter options (GraphQL: kleverOrderFilterOptions). Replaces REST
+// /my-orders/filter-options. Returns { status_options, company_options } each as
+// [{ label, value }] — the shape the Filters component reads (data.status_options /
+// data.company_options).
+export async function GET(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        const session: any = await getServerSession(authOptions);
-        const token = session?.accessToken;
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        if (!token) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Use the BASE_URL from environment for proper consistent calls
-        const magentoUrl = `${BASE_URL}/my-orders/filter-options`;
-
-        const response = await fetch(magentoUrl, {
-            method: 'GET',
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-                'platform': 'web',
+                "Content-Type": "application/json",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
-            cache: 'no-store',
+            body: JSON.stringify({ query: KLEVER_ORDER_FILTER_OPTIONS_QUERY }),
+            cache: "no-store",
         });
 
-        const rawText = await response.text();
-
-        let data: any;
-        try {
-            data = JSON.parse(rawText);
-        } catch {
-            return NextResponse.json(
-                { message: 'Invalid response from server' },
-                { status: 502 }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[my-orders/filter-options] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to fetch filter options" }, { status: 502 });
         }
 
-        if (!response.ok) {
-            return NextResponse.json(
-                { message: data.message || `Magento returned ${response.status}` },
-                { status: response.status }
-            );
-        }
-
-        return NextResponse.json(data);
-
+        const r = json?.data?.kleverOrderFilterOptions;
+        return NextResponse.json({
+            status_options: Array.isArray(r?.status_options) ? r.status_options : [],
+            company_options: Array.isArray(r?.company_options) ? r.company_options : [],
+        });
     } catch (error: any) {
-        console.error('[my-orders-filters] Catch error:', error);
-        return NextResponse.json(
-            { message: error.message || 'Server error fetching filter options' },
-            { status: 500 }
-        );
+        console.error("[my-orders/filter-options] error:", error.message);
+        return NextResponse.json({ message: error.message || "Server error fetching filter options" }, { status: 500 });
     }
 }

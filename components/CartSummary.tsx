@@ -32,15 +32,15 @@ const CartSummary: React.FC<CartSummaryProps> = ({ subtotal, taxAmount, taxLabel
                 {/* Price Breakdown */}
                 <div className="space-y-3.5">
                     <div className="flex justify-between items-center">
-                        <span className="text-black font-medium text-[10px] uppercase tracking-wider">{t("cart.subtotal")}</span>
+                        <span className="text-black font-black text-[10px] uppercase tracking-wider">{t("cart.subtotal")}</span>
                         <span className="font-semibold text-gray-900 text-[12px]">
                             <Price amount={subtotal} />
                         </span>
                     </div>
 
                     <div className="flex justify-between items-center">
-                        <span className="text-black font-medium text-[10px] uppercase tracking-wider">
-                            {taxLabel || t("m.tax")}
+                        <span className="text-black font-black text-[10px] uppercase tracking-wider">
+                            {t("cart.vat")}
                         </span>
                         <span className="font-semibold text-gray-900 text-[12px]">
                             <Price amount={taxAmount} />

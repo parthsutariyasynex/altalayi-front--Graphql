@@ -20,6 +20,7 @@ type Address = {
   street?: string[];
   city?: string;
   country_id?: string;
+  country_code?: string;
   region?: {
     region?: string;
   };
@@ -55,7 +56,11 @@ function AddressCard({ title, address, onEdit, buttonLabel, t, isRtl }: AddressC
             <p className="font-medium text-gray-800">
               {address.city}{isRtl ? "،" : ","} <span dir="ltr">{address.postcode}</span>
             </p>
-            <p className="font-medium">{address.country_id === 'SA' ? t("addressBook.saudiArabia") : address.country_id}</p>
+            {(() => {
+              // GraphQL source field is `country_code`; the REST-shaped data uses `country_id`.
+              const country = address.country_code || address.country_id;
+              return country ? <p className="font-medium">{country === 'SA' ? t("addressBook.saudiArabia") : country}</p> : null;
+            })()}
             <div className="pt-3 flex items-center gap-2">
               <span className="text-[11px] font-black text-black uppercase tracking-wider">{t("addressBook.phone")}:</span>
               <span className="text-gray-600 font-bold hover:text-yellow-600 cursor-pointer transition-colors duration-200" dir="ltr">{address.telephone}</span>

@@ -1,47 +1,52 @@
-import { NextResponse } from "next/server";
-import { getBaseUrl } from "@/lib/api/magento-url";
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_ORDER_ATTACHMENTS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
+// GET — attachments for a single order (GraphQL: kleverOrderAttachments(orderId: Int!)).
+// Replaces REST /order/{orderId}/attachments. Returns { attachments: [{ attachment_id,
+// file_name, file_url, upload_date, document_type, payment_status, invoice_due }] } —
+// the shape the order-detail page reads (data.attachments).
 export async function GET(
-    request: Request,
+    request: NextRequest,
     { params }: { params: Promise<{ orderId: string }> }
 ) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        const { orderId } = await params;
-        const authHeader = request.headers.get("Authorization");
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        const { orderId } = await params;
+        // orderId may be a numeric entity_id ("222") or a base64 GraphQL order id ("MjIy" → "222").
+        const id = /^\d+$/.test(orderId) ? parseInt(orderId, 10) : parseInt(Buffer.from(decodeURIComponent(orderId), "base64").toString("utf8"), 10);
+        if (Number.isNaN(id)) {
+            return NextResponse.json({ message: "Invalid order id" }, { status: 400 });
         }
 
-        const magentoUrl = `${BASE_URL}/order/${orderId}/attachments`;
-
-        const response = await fetch(magentoUrl, {
-            method: "GET",
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: authHeader,
-                platform: "web",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ query: KLEVER_ORDER_ATTACHMENTS_QUERY, variables: { orderId: id } }),
             cache: "no-store",
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            return NextResponse.json(
-                { message: data.message || `Magento returned ${response.status}` },
-                { status: response.status }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[order/:id/attachments] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to fetch order attachments" }, { status: 502 });
         }
 
-        return NextResponse.json(data);
+        const r = json?.data?.kleverOrderAttachments;
+        return NextResponse.json({
+            attachments: Array.isArray(r?.attachments) ? r.attachments : [],
+        });
     } catch (error: any) {
-        return NextResponse.json(
-            { message: error.message || "Server error fetching order attachments" },
-            { status: 500 }
-        );
+        console.error("[order/:id/attachments] error:", error.message);
+        return NextResponse.json({ message: error.message || "Server error fetching order attachments" }, { status: 500 });
     }
 }

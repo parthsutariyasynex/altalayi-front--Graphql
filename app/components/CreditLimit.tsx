@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Hourglass, Loader2, Info } from "lucide-react";
+import { Hourglass, Info } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { api } from "@/lib/api/api-client";
 import Price from "./Price";

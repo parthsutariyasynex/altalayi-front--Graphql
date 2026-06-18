@@ -1,7 +1,7 @@
 "use client";
 
 import "intl-tel-input/build/css/intlTelInput.css";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn, signOut, useSession, getSession } from "next-auth/react";
@@ -44,7 +44,18 @@ async function resolveDefaultLandingUrl(locale: string): Promise<string> {
       }
     }
   } catch { /* fall through */ }
-  return `/${locale}`;
+  // Fallback when the menu can't be resolved (e.g. WAF-blocked → empty): go to products,
+  // NOT the bare `/${locale}` root (the middleware bounces that back to /login).
+  return `/${locale}/products`;
+}
+
+// Never redirect to /login (or the bare locale root, which middleware sends to /login).
+// Anything unsafe falls back to the products page so a successful login always lands somewhere.
+function safeRedirectUrl(url: string | null | undefined, locale: string): string {
+  if (!url || url.includes("/login") || url === `/${locale}` || url === `/${locale}/`) {
+    return `/${locale}/products`;
+  }
+  return url;
 }
 
 export default function LoginPage() {
@@ -66,25 +77,36 @@ function LoginPageContent() {
   const dispatch = useAppDispatch();
   const { loading: reduxLoading } = useAppSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
+  // One-shot guard so the authenticated→landing redirect fires at most once (prevents a
+  // reload ping-pong with ProtectedLayout).
+  const loginRedirectedRef = useRef(false);
 
   useEffect(() => {
+    if (status === "loading") return;
     if (status === "authenticated") {
       const sess = session as any;
-      if (sess?.error === "MagentoTokenExpired" || !sess?.accessToken) {
+      // Only sign out on an EXPLICIT expired-token signal. Do NOT sign out merely because
+      // accessToken is momentarily absent — right after signIn() the session briefly reports
+      // status="authenticated" before accessToken is populated, and signing out there logged
+      // the user straight back out. (The jwt callback sets error + nulls accessToken together,
+      // so the error flag alone reliably detects a real expired session.)
+      if (sess?.error === "MagentoTokenExpired") {
         signOut({ redirect: false });
         return;
       }
+      // Redirect to the destination exactly once (soft client nav, not a full reload).
+      if (loginRedirectedRef.current) return;
+      loginRedirectedRef.current = true;
       (async () => {
-        const callback = searchParams.get("callbackUrl");
-        if (callback) {
-          window.location.href = callback;
-          return;
-        }
         const locale = window.location.pathname.startsWith("/ar") ? "ar" : "en";
-        window.location.href = await resolveDefaultLandingUrl(locale);
+        const callback = searchParams.get("callbackUrl");
+        const landing = await resolveDefaultLandingUrl(locale);
+        const finalUrl = safeRedirectUrl(callback || landing, locale);
+        console.log("[login:session-effect] callbackUrl:", callback, "| landing:", landing, "| final redirect:", finalUrl);
+        router.replace(finalUrl);
       })();
     }
-  }, [status, session, lp, searchParams]);
+  }, [status, session, lp, searchParams, router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -167,15 +189,25 @@ function LoginPageContent() {
         });
 
         if (res?.ok) {
-          for (let i = 0; i < 15; i++) {
-            const session: any = await getSession();
-            if (session?.accessToken) break;
-            await new Promise(r => setTimeout(r, 200));
+          // signIn(redirect:false) resolves `ok` only after the session cookie is set, and
+          // the full-page redirect below reloads the session fresh — so we just confirm the
+          // token with a short, bounded check (≤3 reads) instead of the old 15× poll that
+          // hammered /api/auth/session on every login.
+          let sess: any = await getSession();
+          for (let i = 0; i < 2 && !sess?.accessToken; i++) {
+            await new Promise(r => setTimeout(r, 150));
+            sess = await getSession();
           }
+          if (sess?.accessToken) localStorage.setItem("token", sess.accessToken);
           toast.success(t("login.loginSuccess"));
           const locale = window.location.pathname.startsWith('/ar') ? 'ar' : 'en';
-          const callbackUrl = searchParams.get("callbackUrl") || await resolveDefaultLandingUrl(locale);
-          window.location.href = callbackUrl;
+          const callbackParam = searchParams.get("callbackUrl");
+          const landing = await resolveDefaultLandingUrl(locale);
+          const finalUrl = safeRedirectUrl(callbackParam || landing, locale);
+          console.log("[login] signIn result:", res);
+          console.log("[login] session token:", sess?.accessToken ? "present" : "missing", "| status:", status);
+          console.log("[login] callbackUrl param:", callbackParam, "| resolved landing:", landing, "| final redirect:", finalUrl);
+          router.replace(finalUrl);
         } else {
           localStorage.removeItem("token");
           toast.error(t("login.loginFailed"));
@@ -199,18 +231,21 @@ function LoginPageContent() {
         });
 
         if (res?.ok) {
-          for (let i = 0; i < 15; i++) {
-            const session: any = await getSession();
-            if (session?.accessToken) {
-              localStorage.setItem("token", session.accessToken);
-              break;
-            }
-            await new Promise(r => setTimeout(r, 200));
+          // Bounded session read (≤3) — signIn(redirect:false) has set the cookie; the
+          // full-page redirect reloads the session. Replaces the old 15× getSession poll.
+          let sess: any = await getSession();
+          for (let i = 0; i < 2 && !sess?.accessToken; i++) {
+            await new Promise(r => setTimeout(r, 150));
+            sess = await getSession();
           }
+          if (sess?.accessToken) localStorage.setItem("token", sess.accessToken);
           toast.success(t("login.loginSuccess"));
           const locale = window.location.pathname.startsWith('/ar') ? 'ar' : 'en';
-          const callbackUrl = searchParams.get("callbackUrl") || await resolveDefaultLandingUrl(locale);
-          window.location.href = callbackUrl;
+          const callbackParam = searchParams.get("callbackUrl");
+          const landing = await resolveDefaultLandingUrl(locale);
+          const finalUrl = safeRedirectUrl(callbackParam || landing, locale);
+          console.log("[login-otp] callbackUrl param:", callbackParam, "| resolved landing:", landing, "| final redirect:", finalUrl);
+          router.replace(finalUrl);
         } else {
           localStorage.removeItem("token");
           toast.error(res?.error || t("login.loginFailed"));

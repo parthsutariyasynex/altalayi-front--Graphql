@@ -41,7 +41,10 @@ const SKIP_PATHS = ["/api", "/_next", "/favicon.ico", "/logo", "/images", "/loca
 type ResolvedUrl =
     | { kind: "category"; categoryId: string }
     | { kind: "cms"; nextjsPath: string }
-    | { kind: "unknown" };
+    | { kind: "unknown" }
+    // Backend/transport/schema failure — the resolver could not be reached or
+    // answered with an error. Distinct from "unknown" (resolver answered: no match).
+    | { kind: "error"; reason: string };
 
 const urlResolutionCache = new Map<string, ResolvedUrl>();
 
@@ -178,28 +181,67 @@ async function resolveMagentoUrl(slugPath: string): Promise<ResolvedUrl> {
             }),
             cache: "no-store",
         });
-        if (res.ok) {
-            const data = await res.json();
-            const r = data?.data?.urlResolver;
-            if (r?.entity_uid && r.type === "CATEGORY") {
-                let id = String(r.entity_uid);
-                if (!/^\d+$/.test(id)) {
-                    try {
-                        id = Buffer.from(id, "base64").toString("utf-8");
-                    } catch { }
-                }
-                if (/^\d+$/.test(id)) {
-                    const result: ResolvedUrl = { kind: "category", categoryId: id };
-                    urlResolutionCache.set(slugPath, result);
-                    return result;
-                }
+
+        // HTTP-level failure (500 schema build error, 502/503, etc.). The backend
+        // is unhealthy — this is NOT a missing URL. Don't cache; let it retry.
+        if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            console.error(
+                `[middleware] Magento GraphQL urlResolver HTTP ${res.status} for "${queryUrl}": ${body.slice(0, 500)}`
+            );
+            return { kind: "error", reason: `http_${res.status}` };
+        }
+
+        // Magento emits PHP exception dumps (non-JSON) on schema build failures.
+        const text = await res.text();
+        let data: any;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            console.error(
+                `[middleware] Magento GraphQL urlResolver returned non-JSON for "${queryUrl}": ${text.slice(0, 500)}`
+            );
+            return { kind: "error", reason: "invalid_json" };
+        }
+
+        // GraphQL-level errors (e.g. schema "Unexpected Name INPUT") mean the
+        // backend is broken, not that the URL doesn't exist. Don't cache.
+        if (Array.isArray(data?.errors) && data.errors.length > 0) {
+            console.error(
+                `[middleware] Magento GraphQL urlResolver errors for "${queryUrl}": ${JSON.stringify(data.errors).slice(0, 500)}`
+            );
+            return { kind: "error", reason: "graphql_errors" };
+        }
+
+        const r = data?.data?.urlResolver;
+        if (r?.entity_uid && r.type === "CATEGORY") {
+            let id = String(r.entity_uid);
+            if (!/^\d+$/.test(id)) {
+                try {
+                    id = Buffer.from(id, "base64").toString("utf-8");
+                } catch { }
+            }
+            if (/^\d+$/.test(id)) {
+                const result: ResolvedUrl = { kind: "category", categoryId: id };
+                urlResolutionCache.set(slugPath, result);
+                return result;
             }
         }
-    } catch { }
 
-    const fallback: ResolvedUrl = { kind: "unknown" };
-    urlResolutionCache.set(slugPath, fallback);
-    return fallback;
+        // Resolver answered cleanly but found no matching category → genuine 404.
+        // Safe to cache.
+        const fallback: ResolvedUrl = { kind: "unknown" };
+        urlResolutionCache.set(slugPath, fallback);
+        return fallback;
+    } catch (err) {
+        // Network/transport failure (DNS, timeout, connection refused). Backend
+        // unreachable — not a missing URL. Don't cache; let it retry.
+        console.error(
+            `[middleware] Magento GraphQL urlResolver request failed for "${queryUrl}":`,
+            err
+        );
+        return { kind: "error", reason: "fetch_failed" };
+    }
 }
 
 // True if the first path segment is a known internal Next.js app route.
@@ -332,7 +374,28 @@ export async function middleware(request: NextRequest) {
         return response;
     }
 
-    // ── 3d. Unknown — fall through to default Next.js routing ───────────
+    // ── 3d. Backend error — resolver unreachable/broken (NOT a missing URL) ──
+    // Show a maintenance page with a 503 instead of a misleading 404, so this
+    // genuine SEO URL isn't penalised when Magento recovers.
+    if (resolved.kind === "error") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/maintenance";
+        url.search = "";
+        // Signal to RootLayout (server component) that this render is the
+        // maintenance fallback, so it bypasses the auth-gated ProtectedLayout —
+        // otherwise the client-side guard would redirect unauthenticated users
+        // to /login (the rewrite preserves the original, non-public URL).
+        requestHeaders.set("x-maintenance", "1");
+        const response = NextResponse.rewrite(url, {
+            request: { headers: requestHeaders },
+            status: 503,
+            headers: { "Retry-After": "120" },
+        });
+        setLocaleCookie(response);
+        return response;
+    }
+
+    // ── 3e. Unknown — fall through to default Next.js routing (real 404) ─
     const url = request.nextUrl.clone();
     url.pathname = pathnameWithoutLocale;
     const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });

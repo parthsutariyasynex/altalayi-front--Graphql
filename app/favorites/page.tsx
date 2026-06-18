@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import FavouriteProducts from "@/app/components/FavouriteProducts";
 import Sidebar from "@/components/Sidebar";
+import { SidebarSkeleton, FavouriteProductsSkeleton } from "@/components/skeletons";
 import { redirectToLogin } from "@/utils/helpers";
 
 /**
@@ -25,9 +26,13 @@ export default function FavoritesPage() {
     }, [authStatus, router]);
 
     if (authStatus === "loading") {
+        // Page-shaped skeleton (sidebar + favourites grid) instead of a full-page spinner.
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-200 border-t-[#f5a623]"></div>
+            <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white font-rubik">
+                <SidebarSkeleton />
+                <div className="w-full mt-4 md:mt-8 px-4 md:px-10 pb-10 bg-white">
+                    <FavouriteProductsSkeleton count={10} />
+                </div>
             </div>
         );
     }
@@ -39,7 +44,7 @@ export default function FavoritesPage() {
             <div className="w-full mt-4 md:mt-8 px-4 md:px-10 pb-10 bg-white">
                 <FavouriteProducts
                     title={
-                        <h1 className="text-[20px] md:text-[26px] font-black text-black uppercase tracking-wide px-4 md:px-0">
+                        <h1 className="text-[20px] md:text-[26px] font-black text-black uppercase tracking-wide text-center">
                             {t("sidebar.favoriteProducts")}
                         </h1>
                     }

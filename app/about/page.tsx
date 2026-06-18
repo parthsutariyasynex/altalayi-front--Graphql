@@ -2,18 +2,22 @@
 import { useTranslation } from "@/hooks/useTranslation";
 
 import React from "react";
+import Image from "next/image";
 
 export default function AboutPage() {
     const { t, isRtl } = useTranslation();
     return (
         <div className="min-h-screen bg-white">
 
-            {/* Banner Section */}
-            <div className="w-full h-[300px] md:h-[400px] lg:h-[500px]">
-                <img
+            {/* Banner Section — hero, above the fold, eager-loaded */}
+            <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px]">
+                <Image
                     src="/images/about-tyresonline-uae.jpg"
                     alt="Al-Talayi Warehouse"
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="100vw"
+                    priority
+                    className="object-cover"
                 />
             </div>
 

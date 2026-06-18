@@ -1,43 +1,51 @@
-import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_LOGIN_AS_SUBACCOUNT_MUTATION } from "@/src/graphql/mutations";
 
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
+
+// POST — log in as a subaccount / impersonate (GraphQL: kleverLoginAsSubaccount).
+// Returns { token, customer } at the top level — `token` is where the subaccounts manage
+// page reads it from the stored response, so the shape is preserved.
+//
+// NOT executed during this migration — this is an auth-changing mutation (issues an
+// impersonation token); schema-validated + build-verified only.
 export async function POST(
-    request: Request,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const baseUrl = getBaseUrl(request);
-        const authHeader = request.headers.get('Authorization');
-
-        if (!authHeader) {
-            return NextResponse.json({ message: 'Authorization required' }, { status: 401 });
-        }
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Authorization required" }, { status: 401 });
 
         const { id } = await params;
-        const magentoUrl = `${baseUrl}/subaccounts/${id}/login`;
+        const subaccountId = parseInt(id, 10);
+        if (Number.isNaN(subaccountId)) {
+            return NextResponse.json({ message: "Invalid subaccount id" }, { status: 400 });
+        }
 
-        console.log(`[API ROUTE] Sub-Account Login at: ${magentoUrl}`);
-
-        const response = await fetch(magentoUrl, {
-            method: 'POST',
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': authHeader,
-                'platform': 'web',
+                "Content-Type": "application/json",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({}),
+            body: JSON.stringify({ query: KLEVER_LOGIN_AS_SUBACCOUNT_MUTATION, variables: { subaccountId } }),
+            cache: "no-store",
         });
 
-        const data = await response.json();
-        console.log(`[API ROUTE] Sub-Account Login response: ${response.status}`, JSON.stringify(data));
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[subaccounts/:id/login] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || "Failed to log in as sub account" }, { status: 400 });
+        }
 
-        return NextResponse.json(data, { status: response.status });
-
+        // Return { token, customer } at top level (matches what the manage page stores/reads).
+        return NextResponse.json(json?.data?.kleverLoginAsSubaccount ?? {});
     } catch (error: any) {
-        console.error('[API ROUTE ERROR] Sub Account Login POST:', error);
-        return NextResponse.json(
-            { message: 'Server-side error logging into sub account.' },
-            { status: 500 }
-        );
+        console.error("[subaccounts/:id/login] error:", error.message);
+        return NextResponse.json({ message: "Server-side error logging into sub account." }, { status: 500 });
     }
 }

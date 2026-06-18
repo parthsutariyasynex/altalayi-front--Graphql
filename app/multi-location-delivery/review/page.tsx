@@ -6,7 +6,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useCart } from "@/modules/cart/hooks/useCart";
 import { useCheckout, Address } from "@/modules/checkout/hooks/useCheckout";
 import { useRouter } from "next/navigation";
-import { Loader2, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import toast from "react-hot-toast";
 import Price from "@/app/components/Price";
 import { MultiLocationReviewSkeleton } from "@/components/skeletons";
@@ -239,15 +239,12 @@ const MultiShippingReviewPage: React.FC = () => {
 
     return (
         <div className="bg-white min-h-screen font-sans pb-10 md:pb-20">
-            <div className="max-w-[1240px] mx-auto pt-6 md:pt-10 px-3 sm:px-4">
+            <div className="max-w-[1440px] mx-auto pt-6 md:pt-10 px-3 sm:px-4">
                 <h1 className="text-[20px] sm:text-[24px] md:text-[28px] font-bold text-black text-center uppercase mb-3 md:mb-4 tracking-tight">
                     {t("multi.reviewOrder")}
                 </h1>
 
-                {/* Billing Information Section */}
-                <h3 className="text-[14px] sm:text-[15px] md:text-[17px] font-bold text-black text-center mb-5 md:mb-8 uppercase tracking-tight">
-                    {t("multi.billingInformation")}
-                </h3>
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mb-8 md:mb-12">
                     {/* Billing Address */}
@@ -455,7 +452,6 @@ const MultiShippingReviewPage: React.FC = () => {
                         disabled={isPlacingOrder}
                         className="w-full sm:w-auto bg-[#f5b21a] text-black px-10 md:px-16 py-3.5 md:py-4 text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-black hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"
                     >
-                        {isPlacingOrder && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                         {t("multi.placeOrder")}
                     </button>
                 </div>

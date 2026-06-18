@@ -229,10 +229,7 @@ export default function MyStatementPage() {
                                     className={`w-full sm:w-auto bg-[#f5a623] text-black px-6 sm:px-10 py-3 md:py-3.5 font-bold text-[14px] uppercase tracking-widest hover:bg-[#e6950f] transition-all shadow-md flex items-center justify-center gap-3 active:scale-[0.98] ${isDownloading ? 'opacity-70 cursor-not-allowed grayscale' : ''}`}
                                 >
                                     {isDownloading ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
-                                            {t("common.loading")}
-                                        </>
+                                        t("common.loading")
                                     ) : (
                                         t("m.get-statement")
                                     )}

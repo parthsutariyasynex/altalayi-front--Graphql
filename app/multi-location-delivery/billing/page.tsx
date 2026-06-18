@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useCheckout, Address } from "@/modules/checkout/hooks/useCheckout";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocalePath } from "@/hooks/useLocalePath";
@@ -141,7 +140,7 @@ const MultiShippingBillingPage: React.FC = () => {
     return (
         <div className="bg-white min-h-screen font-sans pb-10 md:pb-20">
 
-            <div className="max-w-[1240px] mx-auto pt-8 md:pt-16 px-3 sm:px-4">
+            <div className="max-w-[1440px] mx-auto pt-8 md:pt-16 px-3 sm:px-4">
                 <h1 className="text-[20px] sm:text-[24px] md:text-[28px] font-black text-black text-center uppercase mb-8 md:mb-16 tracking-tight">
                     {t("multi.billingInfo")}
                 </h1>
@@ -239,7 +238,6 @@ const MultiShippingBillingPage: React.FC = () => {
                         disabled={isSubmitting || !selectedAddressId || !selectedPaymentCode}
                         className="w-full sm:w-auto justify-center bg-[#f5b21a] text-black px-8 md:px-12 py-3.5 md:py-4 text-[11px] font-black uppercase tracking-[0.15em] hover:bg-black hover:text-white transition-all shadow-sm flex items-center gap-2 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
-                        {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                         {t("multi.goToReview")}
                     </button>
                 </div>

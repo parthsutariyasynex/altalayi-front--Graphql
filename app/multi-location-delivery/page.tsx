@@ -7,7 +7,7 @@ import { useCart } from "@/modules/cart/hooks/useCart";
 import { useCheckout, Address } from "@/modules/checkout/hooks/useCheckout";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Loader2 } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import toast from "react-hot-toast";
 import { MultiLocationDeliverySkeleton } from "@/components/skeletons";
 
@@ -230,7 +230,7 @@ const MultiLocationDeliveryPage: React.FC = () => {
         <div className="bg-white min-h-screen font-sans pb-16 md:pb-32">
 
 
-            <div className="max-w-[1440px] mx-auto py-6 sm:py-8 md:py-12 px-3 sm:px-6 lg:px-10">
+            <div className="max-w-[1920px] mx-auto py-6 sm:py-8 md:py-12 px-3 sm:px-6 lg:px-10">
                 {/* Heading Block */}
                 <div className="text-center mb-6 md:mb-10">
                     <h1 className="text-[18px] sm:text-[22px] md:text-[26px] font-black text-black uppercase tracking-normal mb-1">
@@ -376,7 +376,6 @@ const MultiLocationDeliveryPage: React.FC = () => {
                     >
                         {isAssigning ? (
                             <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
                                 {t("multi.processing")}
                             </>
                         ) : (

@@ -259,12 +259,14 @@ export default function Navbar() {
   const { data: customerData } = useSelector((state: RootState) => state.customer);
   const dispatch = useDispatch();
 
-  const isLoadingName = isAuthenticated && !customerData;
-  const displayUser = isLoadingName
-    ? ""
-    : (customerData as any)?.firstname
+  // Display name: prefer the loaded customer profile; otherwise fall back to the session
+  // name/email, and finally a generic label. This must NOT depend on customerData being
+  // present — /my-account can be WAF-blocked (customerData stays null), and the account
+  // dropdown should still show for an authenticated user.
+  const displayUser =
+    (customerData as any)?.firstname
       ? `${(customerData as any).firstname} ${(customerData as any).lastname || ""}`.trim()
-      : session?.user?.name || session?.user?.email;
+      : (session?.user?.name || session?.user?.email || "My Account");
 
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -279,6 +281,11 @@ export default function Navbar() {
   const { unreadCount, fetchNotifications: pullNotifications } = useNotifications();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const logoutCalledRef = useRef(false);
+  // Guards the one-time "on authenticated" initial fetch (notifications + customer info).
+  // Without it, an unstable `pullNotifications` dep + a customer fetch that never resolves
+  // (e.g. my-account blocked → customerData stays null) re-runs this effect every render,
+  // hammering /my-account and /notifications. Reset on logout.
+  const initialFetchRef = useRef(false);
 
   const cartCount = cart?.items_count || 0;
 
@@ -308,10 +315,17 @@ export default function Navbar() {
   }, [status, session]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      pullNotifications();
-      if (!customerData) dispatch(fetchCustomerInfo() as any);
+    if (!isAuthenticated) {
+      initialFetchRef.current = false; // reset so a fresh login fetches again
+      return;
     }
+    // Run the initial fetch ONCE per authenticated session. Prevents the render loop
+    // where a failing customer fetch (my-account blocked) keeps `customerData` null and
+    // re-triggers this effect → continuous /my-account + /notifications retries.
+    if (initialFetchRef.current) return;
+    initialFetchRef.current = true;
+    pullNotifications();
+    if (!customerData) dispatch(fetchCustomerInfo() as any);
   }, [isAuthenticated, pullNotifications, customerData, dispatch]);
 
   useEffect(() => {
@@ -498,7 +512,7 @@ export default function Navbar() {
             </div>
 
             {/* Welcome badge & Account Dropdown — md+ */}
-            {isAuthenticated && !isLoadingName && pathname !== "/login" && (
+            {isAuthenticated && pathname !== "/login" && (
               <div className="relative hidden lg:block" ref={dropdownRef}>
                 <div
                   onClick={() => setIsProfileOpen(!isProfileOpen)}

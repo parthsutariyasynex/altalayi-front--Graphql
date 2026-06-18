@@ -38,13 +38,22 @@ export function NavbarSkeleton() {
 
 // ─── Sidebar Skeleton ─────────────────────────────────────────────────────────
 export function SidebarSkeleton() {
+  // Mirrors the real account Sidebar's <aside>/<nav>/<ul>/<li> exactly (components/Sidebar.tsx):
+  // same width, sticky offsets, height, border-[#ebebeb], overflow/shadow, and per-item box —
+  // each item reproduces the real <Link>'s box (py-3 px-6 lg:px-4 + border-b-[3px] lg:border-b-0
+  // ltr:lg:border-l-4 border-transparent) so the active-indicator space is reserved and the menu
+  // text placeholder sits exactly where the real label lands → no shift when the real menu loads.
   return (
-    <aside className="w-full lg:w-64 flex-shrink-0 bg-[#f8f8f8] border-b lg:border-b-0 ltr:lg:border-r rtl:lg:border-l border-gray-200 z-30 sticky top-[56px] sm:top-[64px] lg:top-[108px] h-auto lg:h-[calc(100vh-108px)] overflow-hidden">
+    <aside className="w-full lg:w-64 flex-shrink-0 bg-[#f8f8f8] border-b lg:border-b-0 ltr:lg:border-r rtl:lg:border-l border-[#ebebeb] z-30 sticky top-[56px] sm:top-[64px] lg:top-[108px] h-auto lg:h-[calc(100vh-108px)] overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto custom-scrollbar shadow-sm lg:shadow-none">
       <nav className="p-0 lg:p-4">
         <ul className="flex flex-row lg:flex-col space-y-0 lg:space-y-1">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <li key={i} className="flex-shrink-0 px-6 lg:px-4 py-3">
-              <Pulse className="h-4 w-full max-w-[140px] rounded" />
+          {/* ~10 items = the real account menu (SIDEBAR_ROUTES) so the skeleton column height
+              matches the real sidebar and doesn't grow when the menu loads. */}
+          {Array.from({ length: 10 }).map((_, i) => (
+            <li key={i} className="flex-shrink-0">
+              <div className="block py-3 px-6 lg:px-4 border-b-[3px] lg:border-b-0 ltr:lg:border-l-4 rtl:lg:border-r-4 border-transparent whitespace-nowrap">
+                <Pulse className="h-3.5 w-full max-w-[150px] rounded" />
+              </div>
             </li>
           ))}
         </ul>
@@ -302,7 +311,7 @@ export function CartPageSkeleton({ items = 3 }: { items?: number }) {
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] pb-4 lg:pb-10">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-12 pt-8 md:pt-14">
+      <div className="max-w-[1920px] mx-auto px-4 md:px-12 pt-8 md:pt-14">
 
         {/* Breadcrumbs & Title (text-xl md:text-2xl + h-1 w-12 yellow underline) */}
         <div className="mb-10 md:mb-14 text-center">
@@ -616,30 +625,56 @@ export function TableRowSkeleton({ cols = 5 }: { cols?: number }) {
 
 // ─── Orders Table Skeleton ────────────────────────────────────────────────────
 export function OrdersTableSkeleton({ rows = 8 }: { rows?: number }) {
+  // Mirrors the real OrdersTable exactly: a 7-column desktop table (hidden on mobile, full amber
+  // header, min-w-[700px]) PLUS a stacked card layout on mobile (md:hidden). Without the mobile
+  // cards, small screens showed a wide scrolling table skeleton while the loaded page shows cards.
   return (
-    <div className="bg-white rounded-sm border border-gray-100 overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <Pulse className="h-9 w-48 rounded" />
-        <Pulse className="h-9 w-28 rounded" />
-      </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-100">
-            {["w-28", "w-24", "w-20", "w-20", "w-16", "w-20"].map((w, i) => (
-              <th key={i} className="px-4 py-3 text-left">
-                <Pulse className={`h-4 ${w} rounded`} />
-              </th>
+    <>
+      {/* Desktop table (md+) */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-[13px] text-left border-collapse min-w-[700px]">
+          <thead>
+            <tr className="bg-[#f5a623]">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <th key={i} className="px-2 lg:px-4 py-3 border border-[#e6950f]/30">
+                  <Pulse className="h-3 w-16 rounded bg-black/10" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }).map((_, r) => (
+              <tr key={r} className="border-b border-gray-200">
+                {Array.from({ length: 7 }).map((_, c) => (
+                  <td key={c} className="px-2 lg:px-4 py-3 border-r border-gray-200">
+                    <Pulse className="h-3 w-full max-w-[90px] rounded" />
+                  </td>
+                ))}
+              </tr>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: rows }).map((_, i) => (
-            <TableRowSkeleton key={i} cols={6} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile cards (<md) */}
+      <div className="md:hidden space-y-3">
+        {Array.from({ length: Math.min(rows, 5) }).map((_, i) => (
+          <div key={i} className="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Pulse className="h-3.5 w-20 rounded" />
+              <Pulse className="h-3 w-16 rounded" />
+            </div>
+            <Pulse className="h-5 w-24 rounded-full" />
+            <div className="flex justify-between"><Pulse className="h-3 w-16 rounded" /><Pulse className="h-3 w-20 rounded" /></div>
+            <div className="flex justify-between"><Pulse className="h-3 w-16 rounded" /><Pulse className="h-3 w-24 rounded" /></div>
+            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+              <Pulse className="h-3 w-20 rounded" />
+              <Pulse className="h-3 w-16 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -652,16 +687,19 @@ export function MyOrdersSkeleton({ rows = 8 }: { rows?: number }) {
         <Pulse className="h-7 md:h-8 w-40 md:w-48" />
         <Pulse className="w-full md:w-44 h-10 rounded-sm border-2 border-[#F5B21B]" />
       </div>
-      {/* Filters: status tabs row + search + reset */}
-      <div className="bg-white border border-gray-100 p-4 mb-6 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Pulse key={i} className="h-9 w-24 rounded-sm" />
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <Pulse className="flex-1 h-10 rounded-sm" />
-          <Pulse className="h-10 w-24 rounded-sm" />
+      {/* Filter bar: STATUS dropdown + ORDER # search + Search/Reset buttons (matches Filters) */}
+      <div className="bg-white border border-gray-100 p-4 md:p-5 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 md:items-end">
+          <div className="flex flex-col gap-1.5 w-full md:w-48">
+            <Pulse className="h-3 w-24 rounded" />
+            <Pulse className="h-10 w-full rounded-sm" />
+          </div>
+          <div className="flex flex-col gap-1.5 flex-1">
+            <Pulse className="h-3 w-28 rounded" />
+            <Pulse className="h-10 w-full rounded-sm" />
+          </div>
+          <Pulse className="h-10 w-full md:w-24 rounded-sm" />
+          <Pulse className="h-10 w-full md:w-24 rounded-sm" />
         </div>
       </div>
       {/* Orders table */}
@@ -673,82 +711,192 @@ export function MyOrdersSkeleton({ rows = 8 }: { rows?: number }) {
 // ─── Order Detail Skeleton ────────────────────────────────────────────────────
 export function OrderDetailSkeleton() {
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Pulse className="h-7 w-48 rounded" />
-        <Pulse className="h-9 w-28 rounded" />
-      </div>
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-sm border border-gray-100 p-4 space-y-2">
-            <Pulse className="h-3 w-20 rounded" />
-            <Pulse className="h-5 w-28 rounded" />
+    <div className="flex-1 w-full px-4 md:px-6 lg:px-8 py-10 min-w-0 text-xs space-y-10">
+      {/* Header Section */}
+      <div className="flex flex-col mb-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-10 border-b-2 border-yellow-400 pb-2 gap-2 sm:gap-0 w-full">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+            <Pulse className="h-8 w-56 rounded bg-black/10" />
+            <Pulse className="h-6 w-20 rounded-full" />
           </div>
-        ))}
-      </div>
-      {/* Items table */}
-      <div className="bg-white rounded-sm border border-gray-100 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100">
-          <Pulse className="h-5 w-24 rounded" />
+          <Pulse className="h-4 w-32 rounded" />
         </div>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <CartItemSkeleton key={i} />
-        ))}
+        <div className="flex flex-col sm:flex-row justify-start items-stretch sm:items-center gap-3 w-full">
+          <Pulse className="h-10 w-full sm:w-32 rounded" />
+          <Pulse className="h-10 w-full sm:w-36 rounded" />
+        </div>
       </div>
-      {/* Totals */}
-      <div className="bg-white rounded-sm border border-gray-100 p-5 space-y-2 w-full md:w-72 md:ml-auto">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex justify-between">
-            <Pulse className="h-4 w-24 rounded" />
-            <Pulse className="h-4 w-16 rounded" />
+
+      {/* Items Ordered Table */}
+      <div className="bg-white rounded-md border border-[#ebebeb] overflow-hidden mb-10 shadow-sm">
+        <div className="border-b border-[#ebebeb] px-3 md:px-6 py-3 md:py-4 bg-gray-50">
+          <Pulse className="h-4 w-32 rounded" />
+        </div>
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left min-w-[500px]">
+            <thead className="bg-gray-50/50 border-b border-[#ebebeb]">
+              <tr>
+                <th className="px-3 md:px-6 py-3 md:py-4"><Pulse className="h-3 w-28 rounded" /></th>
+                <th className="px-3 md:px-6 py-3 md:py-4 text-center"><Pulse className="h-3 w-16 mx-auto rounded" /></th>
+                <th className="px-3 md:px-6 py-3 md:py-4 text-center"><Pulse className="h-3 w-16 mx-auto rounded" /></th>
+                <th className="px-3 md:px-6 py-3 md:py-4 text-center"><Pulse className="h-3 w-10 mx-auto rounded" /></th>
+                <th className="px-3 md:px-6 py-3 md:py-4 text-right"><Pulse className="h-3 w-20 ml-auto rounded" /></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#ebebeb]">
+              {Array.from({ length: 3 }).map((_, idx) => (
+                <tr key={idx} className={idx % 2 !== 0 ? 'bg-gray-50' : 'bg-white'}>
+                  <td className="px-3 md:px-6 py-3 md:py-5"><Pulse className="h-3 w-48 rounded" /></td>
+                  <td className="px-3 md:px-6 py-3 md:py-5 text-center"><Pulse className="h-3 w-24 mx-auto rounded" /></td>
+                  <td className="px-3 md:px-6 py-3 md:py-5 text-center"><Pulse className="h-3 w-16 mx-auto rounded" /></td>
+                  <td className="px-3 md:px-6 py-3 md:py-5 text-center"><Pulse className="h-3 w-8 mx-auto rounded" /></td>
+                  <td className="px-3 md:px-6 py-3 md:py-5 text-right"><Pulse className="h-3 w-20 ml-auto rounded" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-[#ebebeb]">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className={`p-4 space-y-3 ${idx % 2 !== 0 ? 'bg-gray-50' : 'bg-white'}`}>
+              <Pulse className="h-4 w-3/4 rounded" />
+              <Pulse className="h-3 w-1/3 rounded" />
+              <div className="flex justify-between items-center">
+                <Pulse className="h-3 w-16 rounded" />
+                <Pulse className="h-3 w-12 rounded" />
+              </div>
+              <div className="flex justify-between items-center">
+                <Pulse className="h-3 w-12 rounded" />
+                <Pulse className="h-3 w-8 rounded" />
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                <Pulse className="h-3.5 w-16 rounded" />
+                <Pulse className="h-3.5 w-20 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Order Summary */}
+        <div className="flex justify-end p-4 md:p-8 bg-gray-50/30 border-t border-[#ebebeb]">
+          <div className="w-full max-w-[340px] space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex justify-between items-center">
+                <Pulse className="h-3.5 w-24 rounded" />
+                <Pulse className="h-3.5 w-20 rounded" />
+              </div>
+            ))}
+            <div className="h-px bg-gray-200 my-2" />
+            <div className="flex justify-between items-center">
+              <Pulse className="h-4 w-28 rounded" />
+              <Pulse className="h-4 w-24 rounded" />
+            </div>
           </div>
-        ))}
+        </div>
+      </div>
+
+      {/* Order Information Section */}
+      <div className="mb-10">
+        <div className="border-b-2 border-yellow-400 inline-block pb-1 mb-10">
+          <Pulse className="h-5 w-40 rounded" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white border border-[#ebebeb] rounded-md shadow-sm overflow-hidden">
+              <div className="bg-gray-50 px-5 py-3 border-b border-[#ebebeb]">
+                <Pulse className="h-3 w-32 rounded" />
+              </div>
+              <div className="p-4 md:p-6 space-y-2 min-h-[140px]">
+                <Pulse className="h-3.5 w-48 rounded" />
+                <Pulse className="h-3 w-3/4 rounded" />
+                <Pulse className="h-3 w-2/3 rounded" />
+                <Pulse className="h-3 w-1/2 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Order Attachments Section */}
+      <div className="mb-12">
+        <div className="border-b-2 border-yellow-400 inline-block pb-1 mb-10">
+          <Pulse className="h-5 w-44 rounded" />
+        </div>
+        <div className="bg-white border border-[#ebebeb] rounded-md overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead className="bg-gray-50 border-b border-[#ebebeb]">
+                <tr className="h-[50px]">
+                  <th className="px-3 md:px-6 py-3 md:py-4 text-left"><Pulse className="h-3.5 w-20 rounded" /></th>
+                  <th className="px-3 md:px-6 py-3 md:py-4 text-center"><Pulse className="h-3.5 w-12 mx-auto rounded" /></th>
+                  <th className="px-3 md:px-6 py-3 md:py-4 text-center"><Pulse className="h-3.5 w-20 mx-auto rounded" /></th>
+                  <th className="px-3 md:px-6 py-3 md:py-4 text-center"><Pulse className="h-3.5 w-20 mx-auto rounded" /></th>
+                  <th className="px-3 md:px-6 py-3 md:py-4 text-center"><Pulse className="h-3.5 w-16 mx-auto rounded" /></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#ebebeb]">
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <tr key={idx} className={idx % 2 !== 0 ? 'bg-gray-50' : 'bg-white'}>
+                    <td className="px-3 md:px-6 py-3 md:py-5 text-left"><Pulse className="h-3 w-36 rounded" /></td>
+                    <td className="px-3 md:px-6 py-3 md:py-5 text-center"><Pulse className="h-3 w-16 mx-auto rounded" /></td>
+                    <td className="px-3 md:px-6 py-3 md:py-5 text-center"><Pulse className="h-3 w-20 mx-auto rounded" /></td>
+                    <td className="px-3 md:px-6 py-3 md:py-5 text-center"><Pulse className="h-3 w-20 mx-auto rounded" /></td>
+                    <td className="px-3 md:px-6 py-3 md:py-5 text-center"><Pulse className="h-5 w-16 mx-auto rounded-full" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
+
 // ─── Dashboard Skeleton ───────────────────────────────────────────────────────
 export function DashboardSkeleton() {
+  // Mirror the real /customer/dashboard default (non-compare) view: full-width compare bar,
+  // two full-width 3-card stat grids, and a full-width 2-col bottom-filter grid. Cards use
+  // gray-50 headers + #ebebeb borders (NOT amber). Container is max-w-[1240px] mx-auto.
   return (
-    <div className="flex-1 p-4 md:p-8 lg:p-10 bg-[#fcfcfc] min-h-0">
-      <div className="w-full space-y-12">
+    <div className="flex-1 p-4 md:p-8 lg:p-10 bg-[#fcfcfc] min-h-0 font-rubik">
+      <div className="max-w-[1240px] mx-auto space-y-12">
         {/* Title with gradient line */}
         <div className="flex items-center gap-4 mb-2">
-          <Pulse className="h-8 w-40" />
-          <div className="h-[2px] flex-1 bg-gradient-to-r from-[#F5B21B] to-transparent" />
+          <Pulse className="h-7 w-40" />
+          <div className="h-[2px] flex-1 bg-gradient-to-r from-yellow-400 to-transparent" />
         </div>
 
-        {/* Compare section (w-1/2) */}
-        <section className="bg-white w-1/2 border border-gray-200 rounded-xl overflow-hidden">
-          <div className="bg-gray-100 p-4 px-6 border-b border-gray-200 flex items-center gap-3">
-            <Pulse className="h-[18px] w-[18px]" />
-            <Pulse className="h-4 w-24" />
+        {/* Compare section — full width */}
+        <section className="bg-white border border-[#ebebeb] rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-gray-50/80 p-4 px-6 border-b border-[#ebebeb] flex items-center gap-3">
+            <Pulse className="h-[18px] w-[18px] rounded-sm" />
+            <Pulse className="h-3.5 w-24" />
           </div>
           <div className="p-8 px-8 md:px-12 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-12">
-            <Pulse className="flex-1 h-11 w-full rounded-sm" />
-            <Pulse className="h-7 w-14 rounded-full" />
-            <Pulse className="flex-1 h-11 w-full rounded-sm" />
+            <Pulse className="flex-1 h-11 w-full rounded-lg" />
+            <Pulse className="h-7 w-14 rounded-full shrink-0" />
+            <Pulse className="flex-1 h-11 w-full rounded-lg" />
           </div>
         </section>
 
-        {/* TOTAL ORDER QTY (text-4xl) + TOTAL ORDER VALUE (text-2xl) */}
+        {/* TOTAL ORDER QTY (text-4xl) + TOTAL ORDER VALUE (text-2xl) — each a full-width 3-card grid */}
         {Array.from({ length: 2 }).map((_, sectionIdx) => {
           const valueHeight = sectionIdx === 0 ? "h-9 w-28" : "h-7 w-32";
           return (
             <section key={sectionIdx}>
               <div className="flex items-center gap-4 mb-6">
-                <Pulse className="h-6 w-48" />
-                <div className="h-[2px] w-12 bg-[#F5B21B]" />
+                <Pulse className="h-5 w-48" />
+                <div className="h-[2px] w-12 bg-yellow-400" />
               </div>
-              <div className="w-3/4 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <div className="bg-[#F5B21B] h-10 px-5 flex justify-between items-center border-b border-gray-200">
+                  <div key={i} className="bg-white border border-[#ebebeb] rounded-xl overflow-hidden shadow-sm">
+                    <div className="bg-gray-50 h-10 px-5 flex justify-between items-center border-b border-[#ebebeb]">
                       <Pulse className="h-3 w-20" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#F5B21B]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
                     </div>
                     <div className="py-10 px-4 flex justify-center">
                       <Pulse className={valueHeight} />
@@ -760,17 +908,17 @@ export function DashboardSkeleton() {
           );
         })}
 
-        {/* Bottom filters (w-3/4 grid 2 cols) */}
-        <section className="w-3/4 grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+        {/* Bottom filters — full-width 2-col grid */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="flex flex-col gap-4">
-              <Pulse className="h-4 w-32" />
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="bg-[#F5B21B] border-b border-gray-200 h-12 px-5 flex items-center">
+              <Pulse className="h-3.5 w-32" />
+              <div className="bg-white border border-[#ebebeb] rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-gray-50 border-b border-[#ebebeb] h-12 px-5 flex items-center">
                   <Pulse className="h-4 w-40" />
                 </div>
                 <div className="py-8 px-6 flex justify-center">
-                  <Pulse className="h-8 w-20" />
+                  <Pulse className="h-9 w-20" />
                 </div>
               </div>
             </div>
@@ -811,16 +959,20 @@ export function WishlistSkeleton({ count = 6 }: { count?: number }) {
 }
 
 // ─── Favourite Products Skeleton ──────────────────────────────────────────────
-export function FavouriteProductsSkeleton({ count = 6 }: { count?: number }) {
+export function FavouriteProductsSkeleton({ count = 10 }: { count?: number }) {
   return (
     <div className="w-full font-rubik">
-      {/* Title bar with gradient line */}
+      {/* Title — centered h1 (text-[20px] md:text-[26px]), NO gradient divider. The page
+          passes a valid <h1 text-center> element as title, so the real component renders it
+          full-width-centered and omits the gradient line. */}
       <div className="flex items-center gap-4 mb-8">
-        <Pulse className="h-7 md:h-8 w-56" />
-        <div className="h-[2px] flex-1 bg-gradient-to-r from-[#F5B21B] to-transparent" />
+        <div className="flex-1 flex justify-center">
+          <Pulse className="h-6 md:h-7 w-56" />
+        </div>
       </div>
 
-      {/* Mobile/Tablet card grid (xl:hidden) */}
+      {/* Mobile/Tablet card grid (xl:hidden) — matches the real card: info column + 14×14
+          image on the right, then a border-t price/actions row (cart + remove buttons). */}
       <div className="xl:hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {Array.from({ length: count }).map((_, i) => (
           <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex flex-col gap-2">
@@ -838,65 +990,160 @@ export function FavouriteProductsSkeleton({ count = 6 }: { count?: number }) {
                   <Pulse className="h-2.5 w-16" />
                 </div>
               </div>
+              <Pulse className="w-14 h-14 flex-shrink-0 rounded-lg" />
             </div>
-            <Pulse className="w-full h-9 rounded-md mt-1" />
+            <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 mt-1 gap-2">
+              <Pulse className="h-3.5 w-16" />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Pulse className="h-9 w-12 rounded-lg" />
+                <Pulse className="h-9 w-9 rounded-lg" />
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Desktop table (xl+) — 10 columns */}
-      <div className="hidden xl:block overflow-x-auto">
-        <table className="w-full border-collapse table-fixed min-w-[950px]">
-          <colgroup>
-            {["8%", "13%", "13%", "6%", "7%", "7%", "9%", "9%", "10%", "115px"].map((w, i) => (
-              <col key={i} style={{ width: w }} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr className="bg-gray-50/80 h-[60px] border-b border-[#ebebeb]">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <th key={i} className="px-2 md:px-4 text-center">
-                  <Pulse className="h-3 w-12 mx-auto" />
-                </th>
+      {/* Desktop table (xl+) — 10 columns, wrapped in the real card chrome
+          (bg-white rounded-xl shadow-sm border #ebebeb), table-fixed min-w-[950px]. */}
+      <div className="hidden xl:flex flex-col bg-white rounded-xl shadow-sm border border-[#ebebeb] overflow-hidden">
+        <div className="flex-1 overflow-x-auto">
+          <table className="w-full border-collapse table-fixed min-w-[950px]">
+            <colgroup>
+              {["10%", "12%", "15%", "6%", "10%", "6%", "4%", "11%", "13%", "13%"].map((w, i) => (
+                <col key={i} style={{ width: w }} />
               ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {Array.from({ length: count }).map((_, i) => (
-              <tr key={i} className="h-[52px]">
-                <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-12 mx-auto" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-16 mx-auto" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-20 mx-auto" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-10 mx-auto" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-12 mx-auto" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="w-10 h-10 mx-auto rounded-sm" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-12 mx-auto" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-14 mx-auto" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-16 mx-auto" /></td>
-                <td className="px-2 md:px-4 text-center"><Pulse className="w-20 h-8 mx-auto rounded-md" /></td>
+            </colgroup>
+            <thead>
+              <tr className="bg-gray-50/80 h-[60px] border-b border-[#ebebeb]">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <th key={i} className="px-2 md:px-4 text-center">
+                    <Pulse className="h-3 w-12 mx-auto" />
+                  </th>
+                ))}
               </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {Array.from({ length: count }).map((_, i) => (
+                <tr key={i} className="h-[60px]">
+                  <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-12 mx-auto" /></td>
+                  <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-16 mx-auto" /></td>
+                  <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-20 mx-auto" /></td>
+                  <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-10 mx-auto" /></td>
+                  <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-12 mx-auto" /></td>
+                  <td className="px-2 md:px-4 text-center"><Pulse className="w-10 h-10 mx-auto rounded-sm" /></td>
+                  <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-8 mx-auto" /></td>
+                  <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-14 mx-auto" /></td>
+                  <td className="px-2 md:px-4 text-center"><Pulse className="h-3 w-16 mx-auto" /></td>
+                  <td className="px-2 md:px-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <Pulse className="w-8 h-8 rounded-md" />
+                      <Pulse className="w-8 h-8 rounded-md" />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination — mirrors <Pagination/> (shown when totalCount > pageSize): page-size
+          selector (left) · round page buttons (center) · "showing X-Y of Z" (right). */}
+      <div className="mt-0 w-full">
+        <div className="w-full flex flex-col md:flex-row items-center justify-between py-3 md:py-4 px-1 gap-6 mt-4 border-t border-gray-100">
+          <div className="md:w-[180px] flex justify-center md:justify-start order-1">
+            <Pulse className="h-9 w-[120px] rounded" />
+          </div>
+          <div className="flex items-center gap-1.5 md:gap-2 order-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Pulse key={i} className="h-9 w-9 md:h-10 md:w-10 rounded-full" />
             ))}
-          </tbody>
-        </table>
+          </div>
+          <div className="md:w-[220px] flex justify-center md:justify-end order-3">
+            <Pulse className="h-3.5 w-40 rounded" />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 // ─── Notifications Skeleton ───────────────────────────────────────────────────
-export function NotificationsSkeleton({ count = 5 }: { count?: number }) {
+export function NotificationsSkeleton({ count = 15 }: { count?: number }) {
+  // Content-only (heading + bordered container with the 4-col table / mobile cards / gray
+  // pagination panel). NO outer padding — the single caller wraps it in the real page's
+  // <main px-4 md:px-6 lg:px-8> inside <div md:py-7>, so the route-level fallback, the
+  // page's initial-load skeleton, and the loaded page all share one identical wrapper.
+  // Default count = the page's default pageSize (15) so the skeleton fills the full page and
+  // the row count matches the first page of data → no vertical jump when data arrives.
   return (
-    <div className="space-y-2">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="bg-white rounded-sm border border-gray-100 p-4 flex items-start gap-3">
-          <Pulse className="h-8 w-8 rounded-full flex-shrink-0" />
-          <div className="flex-1 space-y-1.5">
-            <Pulse className="h-4 w-3/4 rounded" />
-            <Pulse className="h-3 w-1/2 rounded" />
-          </div>
-          <Pulse className="h-8 w-16 rounded" />
+    <div className="w-full">
+      {/* Title */}
+      <Pulse className="h-7 md:h-8 w-48 rounded mb-6 md:mb-10" />
+
+      <div className="border border-[#ebebeb] rounded-sm overflow-hidden shadow-sm">
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left border-collapse table-fixed min-w-[600px]">
+            <thead>
+              <tr className="border-b border-[#ebebeb]">
+                <th className="px-6 py-4 text-center w-[15%] border-r border-[#ebebeb]"><Pulse className="h-3 w-16 mx-auto rounded" /></th>
+                <th className="px-6 py-4 text-center w-[20%] border-r border-[#ebebeb]"><Pulse className="h-3 w-16 mx-auto rounded" /></th>
+                <th className="px-6 py-4 text-center w-[45%] border-r border-[#ebebeb]"><Pulse className="h-3 w-24 mx-auto rounded" /></th>
+                <th className="px-6 py-4 text-center w-[20%]"><Pulse className="h-3 w-16 mx-auto rounded" /></th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {Array.from({ length: count }).map((_, i) => (
+                <tr key={i} className="border-b border-[#ebebeb] last:border-0">
+                  <td className="px-6 py-6 border-r border-[#ebebeb]"><Pulse className="h-3 w-28 mx-auto rounded" /></td>
+                  <td className="px-6 py-6 border-r border-[#ebebeb]"><Pulse className="h-3 w-32 mx-auto rounded" /></td>
+                  <td className="px-6 py-6 border-r border-[#ebebeb]"><Pulse className="h-3 w-full rounded" /></td>
+                  <td className="px-6 py-6"><Pulse className="h-3 w-20 mx-auto rounded" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ))}
+
+        {/* Mobile cards */}
+        <div className="md:hidden">
+          {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
+            <div key={i} className="p-4 border-b border-[#ebebeb] last:border-0 bg-white">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <Pulse className="h-3.5 w-32 rounded" />
+                <Pulse className="h-3 w-16 rounded flex-shrink-0" />
+              </div>
+              <Pulse className="h-3 w-full rounded mb-1" />
+              <Pulse className="h-3 w-2/3 rounded mb-3" />
+              <div className="flex items-center gap-3">
+                <Pulse className="h-3 w-20 rounded" />
+                <Pulse className="h-3 w-14 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pagination panel — matches the real footer: items-count (left) · prev + page
+            buttons + next, all w-10 h-10 round (center) · "Show [size] per page" (right). */}
+        <div className="bg-[#e8e8e8] px-4 md:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-6 border-t border-[#dddddd]">
+          <Pulse className="h-3.5 w-44 rounded order-2 lg:order-1" />
+          <div className="flex items-center gap-3 order-1 lg:order-2">
+            <Pulse className="w-10 h-10 rounded-full" />
+            <div className="flex gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Pulse key={i} className="w-10 h-10 rounded-full" />
+              ))}
+            </div>
+            <Pulse className="w-10 h-10 rounded-full" />
+          </div>
+          <div className="flex items-center gap-3 order-3">
+            <Pulse className="h-3.5 w-10 rounded" />
+            <Pulse className="h-9 w-16 rounded" />
+            <Pulse className="h-3.5 w-14 rounded" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1178,52 +1425,35 @@ export function QuickOrderSkeleton() {
 }
 
 // ─── Order Attachments Skeleton ───────────────────────────────────────────────
-export function OrderAttachmentsSkeleton({ rows = 6 }: { rows?: number }) {
+// Table-only attachments skeleton (desktop 6-col table + mobile cards). Used both inside the
+// full-page OrderAttachmentsSkeleton AND directly in the page's table slot (where the real
+// heading/search/filters already render) — so the two never duplicate that chrome.
+// Matches the real table: 6 cols, gray-50 header (NOT amber), #ebebeb borders, h-[50px]
+// header row, px-6 py-4 cells, alternating row bg, overflow-x-auto, full width.
+export function OrderAttachmentsTableSkeleton({ rows = 6 }: { rows?: number }) {
   return (
-    <div className="flex-1 w-full px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-10">
-      {/* Title */}
-      <Pulse className="h-7 md:h-8 w-48 mb-6 md:mb-10" />
-
-      {/* Search row */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-6 md:mb-8">
-        <Pulse className="w-full sm:w-[200px] h-[40px] rounded-sm border border-gray-200" />
-        <Pulse className="w-full sm:w-24 h-[40px] rounded-sm" />
-      </div>
-
-      {/* Filters card */}
-      <div className="bg-white border border-gray-200 rounded-sm p-4 md:p-6 mb-6 md:mb-10 flex flex-col sm:flex-row gap-4 items-end">
-        <div className="w-full sm:w-auto sm:min-w-[200px] space-y-2">
-          <Pulse className="h-3 w-28" />
-          <Pulse className="w-full h-[40px] rounded-sm border border-gray-200" />
-        </div>
-        <div className="w-full sm:w-auto sm:min-w-[200px] space-y-2">
-          <Pulse className="h-3 w-28" />
-          <Pulse className="w-full h-[40px] rounded-sm border border-gray-200" />
-        </div>
-        <Pulse className="w-full sm:w-32 h-[40px] rounded-sm" />
-      </div>
-
-      {/* Attachments table (desktop) */}
-      <div className="hidden md:block border border-gray-200 rounded-sm overflow-hidden">
+    <>
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto w-full border border-[#ebebeb] rounded-md shadow-sm">
         <table className="w-full border-collapse bg-white">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 border-b border-[#ebebeb]">
             <tr className="h-[50px]">
               {["w-16", "w-32", "w-20", "w-24", "w-20", "w-20"].map((w, i) => (
                 <th key={i} className="px-6 py-3">
-                  <Pulse className={`h-3 ${w}`} />
+                  <Pulse className={`h-3 ${w} ${i === 0 || i === 2 ? "mx-auto" : ""}`} />
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {Array.from({ length: rows }).map((_, i) => (
-              <tr key={i} className="border-b border-gray-100">
+              <tr key={i} className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} border-b border-[#ebebeb]`}>
                 <td className="px-6 py-4"><Pulse className="h-3 w-16 mx-auto" /></td>
                 <td className="px-6 py-4"><Pulse className="h-3 w-40" /></td>
                 <td className="px-6 py-4"><Pulse className="h-3 w-20 mx-auto" /></td>
                 <td className="px-6 py-4"><Pulse className="h-3 w-24" /></td>
                 <td className="px-6 py-4"><Pulse className="h-3 w-20" /></td>
-                <td className="px-6 py-4"><Pulse className="h-3 w-20" /></td>
+                <td className="px-6 py-4"><Pulse className="h-6 w-16 rounded-md" /></td>
               </tr>
             ))}
           </tbody>
@@ -1233,7 +1463,7 @@ export function OrderAttachmentsSkeleton({ rows = 6 }: { rows?: number }) {
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="bg-white border border-gray-100 rounded-sm p-4 space-y-2">
+          <div key={i} className="bg-white border border-[#ebebeb] rounded-md p-4 shadow-sm space-y-2">
             <div className="flex justify-between">
               <Pulse className="h-3 w-24" />
               <Pulse className="h-3 w-16" />
@@ -1243,6 +1473,55 @@ export function OrderAttachmentsSkeleton({ rows = 6 }: { rows?: number }) {
           </div>
         ))}
       </div>
+
+      {/* Pagination — mirrors the real <Pagination/>: page-size selector (left) · round
+          page buttons (center) · "showing X-Y of Z" (right), with the same mt-8 + border-t. */}
+      <div className="mt-8 flex justify-center">
+        <div className="w-full flex flex-col md:flex-row items-center justify-between py-3 md:py-4 px-1 gap-6 mt-4 border-t border-gray-100">
+          <div className="md:w-[180px] flex justify-center md:justify-start order-1">
+            <Pulse className="h-9 w-[120px] rounded" />
+          </div>
+          <div className="flex items-center gap-1.5 md:gap-2 order-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Pulse key={i} className="h-9 w-9 md:h-10 md:w-10 rounded-full" />
+            ))}
+          </div>
+          <div className="md:w-[220px] flex justify-center md:justify-end order-3">
+            <Pulse className="h-3.5 w-40 rounded" />
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function OrderAttachmentsSkeleton({ rows = 6 }: { rows?: number }) {
+  // Root padding mirrors the real <main>: px-4 md:px-6 lg:px-8 py-10.
+  return (
+    <div className="flex-1 w-full px-4 md:px-6 lg:px-8 py-10">
+      {/* Title */}
+      <Pulse className="h-7 md:h-8 w-48 mb-6 md:mb-10" />
+
+      {/* Search row (input + button) */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-6 md:mb-8">
+        <Pulse className="w-full sm:w-[200px] h-[40px] rounded-md border border-[#ebebeb]" />
+        <Pulse className="w-full sm:w-24 h-[40px] rounded-md" />
+      </div>
+
+      {/* Filters card (2 dropdowns + reset) */}
+      <div className="bg-white border border-[#ebebeb] rounded-md p-4 md:p-6 mb-6 md:mb-10 flex flex-col sm:flex-row gap-4 items-end shadow-sm">
+        <div className="w-full sm:w-auto sm:min-w-[200px] space-y-2">
+          <Pulse className="h-3 w-28" />
+          <Pulse className="w-full h-[40px] rounded-md border border-gray-300" />
+        </div>
+        <div className="w-full sm:w-auto sm:min-w-[200px] space-y-2">
+          <Pulse className="h-3 w-28" />
+          <Pulse className="w-full h-[40px] rounded-md border border-gray-300" />
+        </div>
+        <Pulse className="w-full sm:w-32 h-[40px] rounded-md" />
+      </div>
+
+      <OrderAttachmentsTableSkeleton rows={rows} />
     </div>
   );
 }
@@ -1254,7 +1533,7 @@ export function MultiLocationDeliverySkeleton({ rows = 4, addresses = 3 }: { row
   const headerColCount = 2 + addresses + 1; // product + cartQty + N addresses + validation
   return (
     <div className="bg-white min-h-screen font-sans pb-16 md:pb-32">
-      <div className="max-w-[1440px] mx-auto py-6 sm:py-8 md:py-12 px-3 sm:px-6 lg:px-10">
+      <div className="max-w-[1920px] mx-auto py-6 sm:py-8 md:py-12 px-3 sm:px-6 lg:px-10">
         {/* Centered heading */}
         <div className="text-center mb-6 md:mb-10">
           <Pulse className="h-6 md:h-7 w-72 md:w-96 mx-auto" />
@@ -1330,7 +1609,7 @@ export function MultiLocationDeliverySkeleton({ rows = 4, addresses = 3 }: { row
 export function MultiLocationBillingSkeleton() {
   return (
     <div className="bg-white min-h-screen font-sans pb-10 md:pb-20">
-      <div className="max-w-[1240px] mx-auto pt-8 md:pt-16 px-3 sm:px-4">
+      <div className="max-w-[1440px] mx-auto pt-8 md:pt-16 px-3 sm:px-4">
         {/* Centered title */}
         <div className="flex justify-center mb-8 md:mb-16">
           <Pulse className="h-7 md:h-8 w-56 md:w-72" />
@@ -1386,7 +1665,7 @@ export function MultiLocationBillingSkeleton() {
 export function MultiLocationShippingSkeleton({ groups = 1 }: { groups?: number }) {
   return (
     <div className="bg-white min-h-screen font-sans pb-10 md:pb-20">
-      <div className="max-w-[1200px] mx-auto pt-6 md:pt-10 px-3 sm:px-4">
+      <div className="max-w-[1440px] mx-auto pt-6 md:pt-10 px-3 sm:px-4">
         {/* Centered title */}
         <div className="flex justify-center mb-2 md:mb-3">
           <Pulse className="h-6 md:h-7 w-48 md:w-64" />
@@ -1453,16 +1732,12 @@ export function MultiLocationShippingSkeleton({ groups = 1 }: { groups?: number 
 export function MultiLocationReviewSkeleton({ groups = 1 }: { groups?: number }) {
   return (
     <div className="bg-white min-h-screen font-sans pb-10 md:pb-20">
-      <div className="max-w-[1240px] mx-auto pt-6 md:pt-10 px-3 sm:px-4">
+      <div className="max-w-[1440px] mx-auto pt-6 md:pt-10 px-3 sm:px-4">
         {/* Centered title */}
         <div className="flex justify-center mb-3 md:mb-4">
           <Pulse className="h-7 md:h-8 w-56 md:w-72" />
         </div>
 
-        {/* Billing Information sub-header */}
-        <div className="flex justify-center mb-5 md:mb-8">
-          <Pulse className="h-5 w-44 md:w-56" />
-        </div>
 
         {/* Billing + Payment 2-col block */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mb-8 md:mb-12">
@@ -1659,21 +1934,36 @@ export function LoginSkeleton() {
 
 // ─── Account Skeleton ─────────────────────────────────────────────────────────
 export function AccountSkeleton() {
-  // Sharp-cornered cards (rounded-none) like the real my-account page
-  const card = "border border-gray-200 bg-white shadow-sm";
+  // Mirror the real my-account cards: cardBase = "border border-gray-300 bg-white
+  // shadow-sm rounded-none"; sectionHeader = "bg-[#f5f5f5] px-4 py-3 border-b border-gray-300".
+  const card = "border border-gray-300 bg-white shadow-sm rounded-none";
+  const sectionHeader = "bg-[#f5f5f5] px-4 py-3 border-b border-gray-300";
+  // A labelled 2-card row (Business+Sales, then Targets+Behavior on the real page).
+  const InfoCard = ({ lines = 3 }: { lines?: number }) => (
+    <div className={card}>
+      <div className={sectionHeader}>
+        <Pulse className="h-4 w-36 rounded" />
+      </div>
+      <div className="p-3 md:p-5 space-y-2.5">
+        {Array.from({ length: lines }).map((_, j) => (
+          <Pulse key={j} className={`h-3.5 rounded ${["w-3/4", "w-2/3", "w-1/2"][j % 3]}`} />
+        ))}
+      </div>
+    </div>
+  );
   return (
     <div className="flex-1 w-full px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-10 bg-[#fcfcfc]">
       {/* Title */}
       <Pulse className="h-7 w-48 rounded mb-6 md:mb-10" />
 
       <div className="space-y-8">
-        {/* ACCOUNT INFORMATION */}
+        {/* ACCOUNT INFORMATION — single Contact card in a 2-col grid (left half on lg) */}
         <div>
           <Pulse className="h-5 w-44 rounded mb-3" />
           <hr className="border-gray-200 mb-6" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             <div className={card}>
-              <div className="bg-[#f5f5f5] px-4 py-3 border-b border-gray-200">
+              <div className={sectionHeader}>
                 <Pulse className="h-4 w-36 rounded" />
               </div>
               <div className="p-3 md:p-5 space-y-3">
@@ -1689,49 +1979,49 @@ export function AccountSkeleton() {
           </div>
         </div>
 
-        {/* SALES + BEHAVIOR row */}
+        {/* BUSINESS OVERVIEW & SALES DATA — 2 cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className={card}>
-              <div className="bg-[#f5f5f5] px-4 py-3 border-b border-gray-200">
-                <Pulse className="h-4 w-36 rounded" />
-              </div>
-              <div className="p-3 md:p-5 space-y-2.5">
-                <Pulse className="h-3.5 w-3/4 rounded" />
-                <Pulse className="h-3.5 w-2/3 rounded" />
-                <Pulse className="h-3.5 w-1/2 rounded" />
-              </div>
-            </div>
-          ))}
+          <InfoCard lines={3} />
+          <InfoCard lines={2} />
         </div>
 
-        {/* CREDIT LIMIT */}
-        <div className={card}>
-          <div className="p-4 md:p-6 space-y-3">
-            <Pulse className="h-4 w-36 rounded" />
-            <Pulse className="h-3 w-full rounded-full" />
-            <div className="flex justify-between">
-              <Pulse className="h-3 w-20 rounded" />
-              <Pulse className="h-3 w-20 rounded" />
-            </div>
+        {/* TARGETS & BEHAVIOR — 2 cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <InfoCard lines={3} />
+          <InfoCard lines={3} />
+        </div>
+
+        {/* CREDIT LIMIT INFORMATION — h2 + hr + 3-card stat grid (CreditLimit component) */}
+        <div>
+          <Pulse className="h-5 w-52 rounded mb-3" />
+          <hr className="border-gray-200 mb-6" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-stretch shadow-sm rounded-none overflow-hidden">
+                <Pulse className="w-16 md:w-20 shrink-0 rounded-none" />
+                <div className="flex-1 bg-white border border-l-0 border-gray-200 p-3 md:p-4 space-y-2">
+                  <Pulse className="h-2.5 w-2/3 rounded" />
+                  <Pulse className="h-5 w-1/2 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* ADDRESS BOOK */}
+        {/* ADDRESS BOOK — default billing + shipping cards */}
         <div>
           <Pulse className="h-5 w-44 rounded mb-3" />
           <hr className="border-gray-200 mb-6" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className={card}>
-                <div className="bg-[#f5f5f5] px-4 py-3 border-b border-gray-200">
+                <div className={sectionHeader}>
                   <Pulse className="h-4 w-48 rounded" />
                 </div>
                 <div className="p-3 md:p-5 space-y-2">
                   {Array.from({ length: 6 }).map((_, j) => (
                     <Pulse key={j} className="h-3.5 w-full rounded" />
                   ))}
-                  {i === 1 && <Pulse className="h-10 w-44 rounded-none mt-4" />}
                 </div>
               </div>
             ))}
@@ -1743,54 +2033,99 @@ export function AccountSkeleton() {
 }
 
 // ─── Address Book Skeleton ────────────────────────────────────────────────────
+// Content-only (no outer padding/max-w) — mirrors the real <Addresses> component, which
+// renders as <div w-full space-y-12>. The page wraps it in <main p-…><div max-w-[1200px]>,
+// so the route-level fallback, the page's loading state, and Addresses' own loading state
+// (which returns this directly, already inside that wrapper) must all share that padding.
 export function AddressBookSkeleton() {
+  const card = "bg-white border border-[#ebebeb] rounded-xl shadow-sm overflow-hidden flex flex-col h-full";
+  const cardHeader = "bg-gray-50/80 px-5 py-4 border-b border-[#ebebeb]";
   return (
-    <div className="flex-1 p-4 md:p-6 lg:p-8 bg-[#fcfcfc]">
-      <div className="max-w-[1200px] space-y-6">
-        {/* Title row */}
-        <div className="flex items-center justify-between">
-          <Pulse className="h-7 w-48 rounded" />
-          <Pulse className="h-9 w-36 rounded-sm" />
+    <div className="w-full font-rubik space-y-12">
+      {/* Section 1: Default Addresses — h2 + gradient line + 2-col card grid */}
+      <section>
+        <div className="flex items-center gap-4 mb-8">
+          <Pulse className="h-6 w-48 rounded" />
+          <div className="h-[2px] flex-1 bg-gradient-to-r from-yellow-400 to-transparent" />
         </div>
-
-        {/* Default billing + shipping cards (top row) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <div className="grid md:grid-cols-2 gap-8">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="bg-[#F5B21B] px-5 py-4 border-b border-gray-200">
-                <Pulse className="h-4 w-48" />
+            <div key={i} className={card}>
+              <div className={cardHeader}>
+                <Pulse className="h-3 w-48 rounded" />
               </div>
-              <div className="p-6 space-y-2">
-                <Pulse className="h-4 w-40 mb-2" />
-                {Array.from({ length: 5 }).map((_, j) => (
-                  <Pulse key={j} className="h-3.5 w-full" />
-                ))}
-                <Pulse className="h-3.5 w-2/3" />
-                <Pulse className="h-10 w-32 rounded-sm mt-4" />
+              <div className="p-6 flex-grow space-y-1.5">
+                <Pulse className="h-4 w-40 rounded mb-3" />
+                <Pulse className="h-3 w-32 rounded" />
+                <Pulse className="h-3 w-48 rounded" />
+                <Pulse className="h-3 w-36 rounded" />
+                <Pulse className="h-3 w-28 rounded" />
+                <div className="pt-3 flex items-center gap-2">
+                  <Pulse className="h-3 w-14 rounded" />
+                  <Pulse className="h-3 w-28 rounded" />
+                </div>
+                {/* Edit button only on the shipping (2nd) card, matching the real layout */}
+                {i === 1 && (
+                  <div className="pt-8">
+                    <Pulse className="h-11 w-44 rounded-lg" />
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
+      </section>
 
-        {/* Additional addresses grid */}
-        <div>
-          <Pulse className="h-5 w-56 rounded mb-4" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="bg-[#F5B21B] px-5 py-4 border-b border-gray-200">
-                  <Pulse className="h-4 w-32" />
-                </div>
-                <div className="p-6 space-y-2">
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <Pulse key={j} className="h-3.5 w-full" />
+      {/* Section 2: Additional Addresses — h2 + gradient line + 6-col table (gray header) + pagination */}
+      <section>
+        <div className="flex items-center gap-4 mb-8">
+          <Pulse className="h-6 w-56 rounded" />
+          <div className="h-[2px] flex-1 bg-gradient-to-r from-yellow-400 to-transparent" />
+        </div>
+        <div className="bg-white border border-[#ebebeb] rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse min-w-[650px]">
+              <thead>
+                <tr className="bg-gray-50/80 border-b border-[#ebebeb] h-[60px]">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <th key={i} className="px-6 py-4 ltr:text-left rtl:text-right">
+                      <Pulse className="h-3 w-20 rounded" />
+                    </th>
                   ))}
-                </div>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-50">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="h-[70px]">
+                    <td className="px-6 py-4"><Pulse className="h-3 w-20 rounded" /></td>
+                    <td className="px-6 py-4"><Pulse className="h-3 w-20 rounded" /></td>
+                    <td className="px-6 py-4"><Pulse className="h-3 w-40 rounded" /></td>
+                    <td className="px-6 py-4"><Pulse className="h-3 w-16 rounded" /></td>
+                    <td className="px-6 py-4"><Pulse className="h-3 w-16 rounded" /></td>
+                    <td className="px-6 py-4"><Pulse className="h-3 w-24 rounded" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Pagination footer (inside the card) */}
+          <div className="px-4 py-2 border-t border-gray-50 bg-gray-50/30">
+            <div className="w-full flex flex-col md:flex-row items-center justify-between py-3 md:py-4 px-1 gap-6 mt-4 border-t border-gray-100">
+              <div className="md:w-[180px] flex justify-center md:justify-start order-1">
+                <Pulse className="h-9 w-[120px] rounded" />
               </div>
-            ))}
+              <div className="flex items-center gap-1.5 md:gap-2 order-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Pulse key={i} className="h-9 w-9 md:h-10 md:w-10 rounded-full" />
+                ))}
+              </div>
+              <div className="md:w-[220px] flex justify-center md:justify-end order-3">
+                <Pulse className="h-3.5 w-40 rounded" />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -1830,7 +2165,7 @@ export function ManageAccountsSkeleton({ rows = 5 }: { rows?: number }) {
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="bg-white border border-gray-200 rounded-md p-4 shadow-sm">
+          <div key={i} className="bg-white border border-[#ebebeb] rounded-md p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0 flex-1 space-y-2">
                 <Pulse className="h-3 w-32" />
@@ -1844,9 +2179,9 @@ export function ManageAccountsSkeleton({ rows = 5 }: { rows?: number }) {
       </div>
 
       {/* Desktop table */}
-      <div className="hidden md:block border border-gray-200 rounded-md shadow-sm overflow-hidden">
+      <div className="hidden md:block border border-[#ebebeb] rounded-md shadow-sm overflow-x-auto">
         <table className="w-full border-collapse bg-white">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 border-b border-[#ebebeb]">
             <tr className="h-[50px]">
               <th className="px-6 py-3"><Pulse className="h-3 w-16" /></th>
               <th className="px-6 py-3"><Pulse className="h-3 w-16" /></th>
@@ -1856,7 +2191,7 @@ export function ManageAccountsSkeleton({ rows = 5 }: { rows?: number }) {
           </thead>
           <tbody>
             {Array.from({ length: rows }).map((_, i) => (
-              <tr key={i} className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} border-b border-gray-200`}>
+              <tr key={i} className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} border-b border-[#ebebeb]`}>
                 <td className="px-6 py-4"><Pulse className="h-3 w-32" /></td>
                 <td className="px-6 py-4"><Pulse className="h-3 w-48" /></td>
                 <td className="px-6 py-4"><Pulse className="h-6 w-16 rounded-md" /></td>
@@ -2130,122 +2465,177 @@ function getBasePath(pathname: string): string {
 // RouteAwareSkeleton (full page) and RouteAwareContent (inner only, when a
 // parent layout already renders the real Navbar/Footer).
 function renderSkeletonForPath(base: string): React.ReactNode {
-    // Auth pages
-    if (base.startsWith("/login") || base.startsWith("/forgot-password") || base.startsWith("/change-password")) {
-      return <LoginSkeleton />;
-    }
+  // Auth pages
+  if (base.startsWith("/login") || base.startsWith("/forgot-password") || base.startsWith("/change-password")) {
+    return <LoginSkeleton />;
+  }
 
-    // Cart / Checkout / Quick Order
-    // NOTE: /checkout/cart and /checkout/success must be matched BEFORE /checkout
-    // because startsWith("/checkout") would otherwise win for those URLs.
-    if (base.startsWith("/cart") || base.startsWith("/checkout/cart")) return <CartPageSkeleton />;
-    if (base.startsWith("/checkout/success")) return <CheckoutSuccessSkeleton />;
-    if (base.startsWith("/checkout")) return <CheckoutSkeleton />;
-    if (base.startsWith("/quick-order")) return <QuickOrderSkeleton />;
+  // Cart / Checkout / Quick Order
+  // NOTE: /checkout/cart and /checkout/success must be matched BEFORE /checkout
+  // because startsWith("/checkout") would otherwise win for those URLs.
+  if (base.startsWith("/cart") || base.startsWith("/checkout/cart")) return <CartPageSkeleton />;
+  if (base.startsWith("/checkout/success")) return <CheckoutSuccessSkeleton />;
+  if (base.startsWith("/checkout")) return <CheckoutSkeleton />;
+  if (base.startsWith("/quick-order")) return <QuickOrderSkeleton />;
 
-    // Multi-location delivery flow — order matters (most specific first)
-    if (base.startsWith("/multi-location-delivery/success")) return <MultiLocationSuccessSkeleton />;
-    if (base.startsWith("/multi-location-delivery/billing")) return <MultiLocationBillingSkeleton />;
-    if (base.startsWith("/multi-location-delivery/shipping")) return <MultiLocationShippingSkeleton groups={2} />;
-    if (base.startsWith("/multi-location-delivery/review")) return <MultiLocationReviewSkeleton groups={1} />;
-    if (base.startsWith("/multi-location-delivery")) return <MultiLocationDeliverySkeleton />;
+  // Multi-location delivery flow — order matters (most specific first)
+  if (base.startsWith("/multi-location-delivery/success")) return <MultiLocationSuccessSkeleton />;
+  if (base.startsWith("/multi-location-delivery/billing")) return <MultiLocationBillingSkeleton />;
+  if (base.startsWith("/multi-location-delivery/shipping")) return <MultiLocationShippingSkeleton groups={2} />;
+  if (base.startsWith("/multi-location-delivery/review")) return <MultiLocationReviewSkeleton groups={1} />;
+  if (base.startsWith("/multi-location-delivery")) return <MultiLocationDeliverySkeleton />;
 
-    // Top-level wishlist / favorites
-    if (base.startsWith("/favorites")) {
-      return (
-        <div className="min-h-screen flex flex-col w-full bg-white">
-          <div className="flex flex-col lg:flex-row flex-1 w-full">
-            <SidebarSkeleton />
-            <main className="flex-1 w-full px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-10 bg-white min-w-0">
-              <FavouriteProductsSkeleton count={8} />
-            </main>
-          </div>
+  // Top-level favorites / wishlist. /wishlist AND the friendly slugs /favourite-products,
+  // /favorite-products all render the SAME favourites page (app/wishlist/page.tsx re-exports
+  // app/favorites/page.tsx; middleware rewrites the friendly slugs to /favorites — but
+  // usePathname keeps the original slug). So they must all use the favourites skeleton, not
+  // a product-card grid, and not the default no-sidebar skeleton.
+  if (
+    base.startsWith("/favorites") ||
+    base.startsWith("/wishlist") ||
+    base.includes("favourite-products") ||
+    base.includes("favorite-products")
+  ) {
+    // Mirror the real favourites page wrapper exactly (app/favorites/page.tsx): outer flex
+    // row + Sidebar + w-full content with mt-4 md:mt-8 px-4 md:px-10 pb-10 — so the
+    // route-level skeleton and the loaded page share identical sidebar width + padding.
+    return (
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white font-rubik">
+        <SidebarSkeleton />
+        <div className="w-full mt-4 md:mt-8 px-4 md:px-10 pb-10 bg-white">
+          <FavouriteProductsSkeleton count={10} />
         </div>
-      );
-    }
-    if (base.startsWith("/wishlist")) {
-      return (
-        <div className="flex flex-col lg:flex-row flex-1 w-full max-w-7xl mx-auto">
+      </div>
+    );
+  }
+
+  // Top-level notifications. /customer/notifications + friendly /notifications,
+  // /my-notifications, /usernotifications all render the notifications page. Mirror its real
+  // wrapper EXACTLY (app/customer/notifications/page.tsx): <div w-full py-4 md:py-10> →
+  // <div flex-col lg:flex-row gap-0> → Sidebar + <main flex-1 min-w-0 px-4 md:px-6 lg:px-8>.
+  // The page's initial-load skeleton uses this identical wrapper, so the route-level skeleton,
+  // the data-loading skeleton, and the loaded page are one continuous layout — no shift.
+  if (base.includes("notifications")) {
+    return (
+      <div className="w-full md:py-7">
+        <div className="flex flex-col lg:flex-row gap-0">
           <SidebarSkeleton />
-          <div className="flex-1 min-w-0 p-4 md:p-6">
-            <WishlistSkeleton />
-          </div>
+          <main className="flex-1 min-w-0 px-4 md:px-6 lg:px-8">
+            <NotificationsSkeleton />
+          </main>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    // For dashboard / user profile pages that require a Sidebar layout
-    const isDashboardRoute =
-      base.startsWith("/my-account") ||
-      base.startsWith("/customer/") ||
+  // For dashboard / user profile pages that require a Sidebar layout
+  const isDashboardRoute =
+    base.startsWith("/my-account") ||
+    base.startsWith("/customer/") ||
+    base.startsWith("/my-orders") ||
+    base.startsWith("/address-book") ||
+    // Friendly account slugs (middleware rewrites these to /customer/* but usePathname
+    // keeps the original slug) — they must enter the sidebar-wrapped dashboard block too.
+    base.includes("order-attachments") ||
+    base.includes("orderupload") ||
+    base.startsWith("/dashboard") ||
+    base.startsWith("/business-overview") ||
+    base.startsWith("/customertarget") ||
+    // My Orders friendly slugs (middleware rewrites orders/sales/history → /my-orders, but
+    // usePathname keeps the slug). Without these, /orders or /sales/order/history fell through
+    // to the default ProductListingSkeleton — the "products skeleton" seen on My Orders.
+    base.startsWith("/orders") ||
+    base.startsWith("/sales") ||
+    base.startsWith("/history");
+
+  if (isDashboardRoute) {
+    let pageSkeleton: React.ReactNode = <DashboardSkeleton />;
+
+    // ORDER detail comes BEFORE the list check — /my-orders/[id] and /sales/order/view/*
+    if (/^\/my-orders\/[^/]+/.test(base) || base.includes("/sales/order/view") || base.includes("/order/view")) {
+      pageSkeleton = <OrderDetailSkeleton />;
+    } else if (base.includes("order-attachments") || base.includes("orderupload")) {
+      // Catches /customer/order-attachments AND the friendly /my-order-attachments,
+      // /order-attachments, /orderupload (orderupload is an attachments alias, not orders).
+      pageSkeleton = <OrderAttachmentsSkeleton />;
+    } else if (
+      // My Orders list — real path + friendly slugs (orders / sales / history /
+      // sales/order/history) that all rewrite to /my-orders.
       base.startsWith("/my-orders") ||
-      base.startsWith("/address-book");
-
-    if (isDashboardRoute) {
-      let pageSkeleton: React.ReactNode = <DashboardSkeleton />;
-
-      // ORDER detail comes BEFORE the list check — /my-orders/[id]
-      if (/^\/my-orders\/[^/]+/.test(base)) {
-        pageSkeleton = <OrderDetailSkeleton />;
-      } else if (base.includes("/order-attachments")) {
-        pageSkeleton = <OrderAttachmentsSkeleton />;
-      } else if (base.startsWith("/my-orders")) {
-        pageSkeleton = <MyOrdersSkeleton />;
-      } else if (base.includes("/orders") || base.includes("/orderupload")) {
-        pageSkeleton = <OrdersTableSkeleton />;
-      } else if (base.includes("/statement") || base.includes("/mystatement")) {
-        pageSkeleton = <StatementSkeleton />;
-      } else if (base.includes("/forecast") || base.includes("/viewforcast")) {
-        pageSkeleton = <ForecastSkeleton />;
-      } else if (base.includes("/usernotifications") || base.includes("/notifications")) {
-        pageSkeleton = <NotificationsSkeleton />;
-      } else if (base.includes("/favourite-products")) {
-        pageSkeleton = <FavouriteProductsSkeleton />;
-      } else if (base.includes("/wishlist")) {
-        pageSkeleton = <WishlistSkeleton />;
-      } else if (base.includes("/address-book") || base.includes("/address")) {
-        pageSkeleton = <AddressBookSkeleton />;
-      } else if (base.includes("/manage-accounts") || base.includes("/subaccounts")) {
-        pageSkeleton = <ManageAccountsSkeleton />;
-      } else if (
-        base.startsWith("/my-account") ||
-        base.includes("/account")
-      ) {
-        pageSkeleton = <AccountSkeleton />;
-      } else if (base.startsWith("/customer/dashboard")) {
-        pageSkeleton = <DashboardSkeleton />;
-      }
-
-      return (
-        <div className="flex flex-col lg:flex-row flex-1 w-full max-w-7xl mx-auto">
-          <SidebarSkeleton />
-          <div className="flex-1 min-w-0">
-            {pageSkeleton}
-          </div>
-        </div>
-      );
-    }
-
-    // Dedicated CMS-style pages (banner + custom content)
-    if (base.startsWith("/about")) return <AboutSkeleton />;
-    if (base.startsWith("/locations")) return <LocationsSkeleton />;
-    if (base.startsWith("/guides")) return <GuidesSkeleton />;
-    if (base.startsWith("/catalogue")) return <CatalogueSkeleton />;
-
-    // Text-only CMS pages (privacy, terms, return-exchange)
-    if (
-      base.startsWith("/privacy-policy") ||
-      base.startsWith("/privacy") ||
-      base.startsWith("/terms-conditions") ||
-      base.startsWith("/terms") ||
-      base.startsWith("/return-exchange-policy") ||
-      base.startsWith("/returns-exchange")
+      base.startsWith("/orders") ||
+      base.startsWith("/sales") ||
+      base.startsWith("/history")
     ) {
-      return <CmsPageSkeleton sections={6} />;
+      pageSkeleton = <MyOrdersSkeleton />;
+    } else if (base.includes("/orders")) {
+      pageSkeleton = <OrdersTableSkeleton />;
+    } else if (base.includes("/statement") || base.includes("/mystatement")) {
+      pageSkeleton = <StatementSkeleton />;
+    } else if (base.includes("/forecast") || base.includes("/viewforcast")) {
+      pageSkeleton = <ForecastSkeleton />;
+    } else if (base.includes("/favourite-products")) {
+      pageSkeleton = <FavouriteProductsSkeleton />;
+    } else if (base.includes("/wishlist")) {
+      pageSkeleton = <WishlistSkeleton />;
+    } else if (base.includes("/address-book") || base.includes("/address")) {
+      // Wrap in the real page's <main p-…><div max-w-[1200px]> so the content-only
+      // AddressBookSkeleton gets the same padding/width as the loaded Address Book page.
+      pageSkeleton = (
+        <main className="flex-1 p-4 md:p-6 lg:p-8 bg-[#fcfcfc] min-h-0">
+          <div className="max-w-[1200px]">
+            <AddressBookSkeleton />
+          </div>
+        </main>
+      );
+    } else if (base.includes("/manage-accounts") || base.includes("/subaccounts")) {
+      pageSkeleton = <ManageAccountsSkeleton />;
+    } else if (
+      base.startsWith("/my-account") ||
+      base.includes("/account")
+    ) {
+      pageSkeleton = <AccountSkeleton />;
+    } else if (
+      base.startsWith("/customer/dashboard") ||
+      base.startsWith("/dashboard") ||
+      base.startsWith("/business-overview") ||
+      base.startsWith("/customertarget")
+    ) {
+      pageSkeleton = <DashboardSkeleton />;
     }
 
-    // Default fallback: product listing style or generic grid
-    return <ProductListingSkeleton />;
+    return (
+      // Full width (w-full, NO max-w/mx-auto) to match the real account pages — they render
+      // full-bleed (sidebar + w-full main). A centered max-w here caused a centered→full-width
+      // shift between the route-level skeleton and the loaded page.
+      <div className="flex flex-col lg:flex-row flex-1 w-full">
+        <SidebarSkeleton />
+        <div className="flex-1 min-w-0">
+          {pageSkeleton}
+        </div>
+      </div>
+    );
+  }
+
+  // Dedicated CMS-style pages (banner + custom content)
+  if (base.startsWith("/about")) return <AboutSkeleton />;
+  if (base.startsWith("/locations")) return <LocationsSkeleton />;
+  if (base.startsWith("/guides")) return <GuidesSkeleton />;
+  if (base.startsWith("/catalogue")) return <CatalogueSkeleton />;
+
+  // Text-only CMS pages (privacy, terms, return-exchange)
+  if (
+    base.startsWith("/privacy-policy") ||
+    base.startsWith("/privacy") ||
+    base.startsWith("/terms-conditions") ||
+    base.startsWith("/terms") ||
+    base.startsWith("/return-exchange-policy") ||
+    base.startsWith("/returns-exchange")
+  ) {
+    return <CmsPageSkeleton sections={6} />;
+  }
+
+  // Default fallback: product listing style or generic grid
+  return <ProductListingSkeleton />;
 }
 
 // Renders the path-appropriate skeleton WITHOUT a NavbarSkeleton or FooterSkeleton wrapper.

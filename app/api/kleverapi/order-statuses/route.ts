@@ -1,56 +1,51 @@
-import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
+import { NextRequest, NextResponse } from "next/server";
+import { getLocaleFromRequest } from "@/lib/api/magento-url";
+import { getRequestToken } from "@/lib/api/auth-helper";
+import { KLEVER_ORDER_FILTER_OPTIONS_QUERY } from "@/src/graphql/queries";
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-/**
- * Fetches available order statuses from Magento.
- */
-export async function GET(request: Request) {
+// GET — available order statuses. There is no dedicated status op; the statuses are the
+// status_options of kleverOrderFilterOptions, so this route derives them from that query.
+// Returns an array of { label, value } with an "All" entry prepended (matching the legacy
+// shape). On any failure it falls back to a minimal list so the filter UI never breaks.
+const FALLBACK = [{ label: "All", value: "All" }, { label: "Check Pending", value: "Check Pending" }];
+
+export async function GET(request: NextRequest) {
     try {
-        const BASE_URL = getBaseUrl(request);
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return NextResponse.json(
-                { message: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-        // Attempt to fetch from Magento Kleverapi
-        // Trying common endpoint names if one is not known
-        const magentoUrl = `${BASE_URL}/order-statuses`;
-
-        const response = await fetch(magentoUrl, {
-            method: 'GET',
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': authHeader,
-                'platform': 'web',
+                "Content-Type": "application/json",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
-            cache: 'no-store',
+            body: JSON.stringify({ query: KLEVER_ORDER_FILTER_OPTIONS_QUERY }),
+            cache: "no-store",
         });
 
-        if (!response.ok) {
-            // Fallback if endpoint doesn't exist on Magento yet
-            // This ensures the UI doesn't break while making it 'dynamic'
-            return NextResponse.json(["All", "Check Pending"]);
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error("[order-statuses] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
+            // Preserve the old graceful fallback so the UI doesn't break.
+            return NextResponse.json(FALLBACK);
         }
 
-        const data = await response.json();
+        const statusOptions = json?.data?.kleverOrderFilterOptions?.status_options;
+        const items = Array.isArray(statusOptions) ? statusOptions : [];
 
-        // Normalize the response if it's not a simple array
-        let items = Array.isArray(data) ? data : (data.items || data.data || []);
+        // Ensure an "All" entry is present at the start (mirrors the legacy behaviour).
+        const hasAll = items.some((o: any) =>
+            String(o?.value ?? "").toLowerCase() === "all" || String(o?.label ?? "").toLowerCase() === "all"
+        );
+        const result = hasAll ? items : [{ label: "All", value: "All" }, ...items];
 
-        // Ensure "All" is included
-        if (!items.includes("All")) {
-            items = ["All", ...items];
-        }
-
-        return NextResponse.json(items);
-
+        return NextResponse.json(result.length > 0 ? result : FALLBACK);
     } catch (error: any) {
-        console.error('[order-statuses] Catch error:', error);
-        return NextResponse.json(["All", "Check Pending"]);
+        console.error("[order-statuses] error:", error.message);
+        return NextResponse.json(FALLBACK);
     }
 }

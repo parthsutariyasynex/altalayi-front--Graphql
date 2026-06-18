@@ -5,8 +5,9 @@ import { KLEVER_QUICK_ORDER_SEARCH_QUERY } from "@/src/graphql/queries";
 
 const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-// GET — quick-order product search (GraphQL: kleverQuickOrderSearch).
-// Returns { items: [{ product_id, sku, name, price, image_url, is_in_stock }], total_count }.
+// GET — quick-order product search (GraphQL: kleverQuickOrderSearch(query, pageSize)).
+// Replaces REST /quick-order/search. Returns { items[{ product_id, sku, name, price,
+// image_url, is_in_stock }], total_count } — the shape SearchPopup / quick-order page read.
 export async function GET(request: NextRequest) {
     try {
         const token = await getRequestToken(request);
@@ -14,16 +15,20 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const query = searchParams.get("query") || "";
-        const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
+        const pageSize = parseInt(searchParams.get("pageSize") || "10", 10) || 10;
 
-        // Preserve the existing short-query guard.
+        // Preserve the legacy short-query guard (no search for < 2 chars).
         if (!query || query.length < 2) {
             return NextResponse.json({ items: [], total_count: 0 });
         }
 
         const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Store: getLocaleFromRequest(request), Authorization: `Bearer ${token}` },
+            headers: {
+                "Content-Type": "application/json",
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
+            },
             body: JSON.stringify({ query: KLEVER_QUICK_ORDER_SEARCH_QUERY, variables: { query, pageSize } }),
             cache: "no-store",
         });
@@ -31,7 +36,7 @@ export async function GET(request: NextRequest) {
         const json = await res.json();
         if (Array.isArray(json?.errors) && json.errors.length > 0) {
             console.error("[quick-order/search] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
-            return NextResponse.json({ error: "Search failed", details: json.errors }, { status: 502 });
+            return NextResponse.json({ error: "Search failed", items: [], total_count: 0 }, { status: 502 });
         }
 
         const r = json?.data?.kleverQuickOrderSearch;
@@ -40,7 +45,7 @@ export async function GET(request: NextRequest) {
             total_count: r?.total_count ?? 0,
         });
     } catch (error: any) {
-        console.error("[quick-order/search] error:", error.message);
-        return NextResponse.json({ error: "Search failed" }, { status: 500 });
+        console.error("[quick-order/search] Error:", error.message);
+        return NextResponse.json({ error: "Search failed", items: [], total_count: 0 }, { status: 500 });
     }
 }

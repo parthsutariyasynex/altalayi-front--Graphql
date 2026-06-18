@@ -194,9 +194,10 @@ export default function OrderDetailsPage() {
 
         const toastId = toast.loading("Adding items to cart...");
         try {
-            // Use entity_id for reorder if available, otherwise orderId from params
-            const targetOrderId = order?.entity_id || orderId;
-            const res = await fetch(`/api/kleverapi/order/${targetOrderId}/reorder`, {
+            // reorderItems(orderNumber: String!) needs the order NUMBER (increment_id, e.g. "BT…"),
+            // not the entity_id / base64 GraphQL id.
+            const orderNumber = order?.increment_id || order?.order_number;
+            const res = await fetch(`/api/kleverapi/order/${encodeURIComponent(orderNumber)}/reorder`, {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -390,7 +391,7 @@ export default function OrderDetailsPage() {
                                 className={`bg-white hover:bg-gray-50 text-black font-black py-2.5 px-6 md:px-8 rounded-md text-[11px] uppercase tracking-widest transition-all border border-[#ebebeb] shadow-sm flex items-center justify-center gap-2 no-print active:scale-95 w-full sm:w-auto ${isPrinting ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
                                 {isPrinting ? (
-                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                                    <span>{t("common.loading")}</span>
                                 ) : (
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                         <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -431,13 +432,13 @@ export default function OrderDetailsPage() {
                                             <td className="px-3 md:px-6 py-3 md:py-5 text-black font-bold">
                                                 {item.name}
                                             </td>
-                                            <td className="px-3 md:px-6 py-3 md:py-5 text-gray-400 font-bold text-center">
+                                            <td className="px-3 md:px-6 py-3 md:py-5 text-black-400 font-bold text-center">
                                                 {item.sku}
                                             </td>
                                             <td className="px-3 md:px-6 py-3 md:py-5 text-black font-bold text-center">
                                                 {formatCurrency(item.price)}
                                             </td>
-                                            <td className="px-3 md:px-6 py-3 md:py-5 text-center text-gray-500 font-bold uppercase">
+                                            <td className="px-3 md:px-6 py-3 md:py-5 text-center text-black-500 font-bold uppercase">
                                                 {Math.round(item.qty_ordered)}
                                             </td>
                                             <td className="px-3 md:px-6 py-3 md:py-5 text-end font-black text-black">
@@ -480,7 +481,7 @@ export default function OrderDetailsPage() {
                         <div className="flex justify-end p-4 md:p-8 bg-gray-50/30 border-t border-[#ebebeb]">
                             <div className="w-full max-w-[340px] space-y-3">
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-gray-400 font-bold uppercase tracking-widest flex-1 text-end me-10">{t("orderDetails.itemsTotal")}</span>
+                                    <span className="text-black-400 font-bold uppercase tracking-widest flex-1 text-end me-10">{t("orderDetails.itemsTotal")}</span>
 
 
                                     <span className="font-black text-black w-[110px] text-end">
@@ -490,7 +491,7 @@ export default function OrderDetailsPage() {
                                 </div>
 
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-gray-400 font-bold uppercase tracking-widest flex-1 text-end me-10">{t("orderDetails.vat")}</span>
+                                    <span className="text-black-400 font-bold uppercase tracking-widest flex-1 text-end me-10">{t("orderDetails.vat")}</span>
 
 
                                     <span className="font-black text-black w-[110px] text-end">
@@ -507,8 +508,8 @@ export default function OrderDetailsPage() {
                                     </span>
                                 </div>
 
-                                <div className="flex justify-between items-center text-[11px] pt-1 pt-4 opacity-50">
-                                    <span className="text-gray-500 font-black uppercase tracking-widest flex-1 text-end me-10">{t("orderDetails.totalQty")}</span>
+                                <div className="flex justify-between items-center text-[11px] pt-1 pt-4">
+                                    <span className="text-black-500 font-black uppercase tracking-widest flex-1 text-end me-10">{t("orderDetails.totalQty")}</span>
 
                                     <span className="font-black text-black w-[110px] text-end">
 
@@ -624,7 +625,7 @@ export default function OrderDetailsPage() {
 
                         {attachmentsError ? (
                             <div className="bg-red-50 border border-red-100 text-red-600 p-4 md:p-8 rounded-md text-center shadow-sm">
-                                <p className="text-xs font-bold uppercase tracking-widest mb-2">Error Loading Attachments</p>
+                                <p className="text-xs font-bold uppercase tracking-widest mb-2">{t("orderAttachments.errorLoading")}</p>
                                 <p className="text-xs">{attachmentsError}</p>
                             </div>
                         ) : isAttachmentsLoading ? (
@@ -678,19 +679,16 @@ export default function OrderDetailsPage() {
                                                                 disabled={isOpening}
                                                                 className="text-yellow-600 hover:text-black font-black break-all text-left cursor-pointer inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-wait underline underline-offset-4"
                                                             >
-                                                                {isOpening && (
-                                                                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-yellow-500 border-t-transparent flex-shrink-0"></span>
-                                                                )}
                                                                 {attachment.file_name || "-"}
                                                             </button>
                                                         </td>
-                                                        <td className="px-3 md:px-6 py-3 md:py-5 text-center text-gray-500 font-bold uppercase">
+                                                        <td className="px-3 md:px-6 py-3 md:py-5 text-center text-black-500 font-bold uppercase">
                                                             {attachment.document_type || attachment.attachment_type || "-"}
                                                         </td>
-                                                        <td className="px-3 md:px-6 py-3 md:py-5 text-center text-gray-500 font-bold uppercase">
+                                                        <td className="px-3 md:px-6 py-3 md:py-5 text-center text-black-500 font-bold uppercase">
                                                             {formatDateDDMMYYYY(attachment.upload_date)}
                                                         </td>
-                                                        <td className="px-3 md:px-6 py-3 md:py-5 text-center text-gray-400 font-bold uppercase">
+                                                        <td className="px-3 md:px-6 py-3 md:py-5 text-center text-black-500 font-bold uppercase">
                                                             {attachment.invoice_due ? formatDateDDMMYYYY(attachment.invoice_due) : "-"}
                                                         </td>
                                                         <td className="px-3 md:px-6 py-3 md:py-5 text-center">

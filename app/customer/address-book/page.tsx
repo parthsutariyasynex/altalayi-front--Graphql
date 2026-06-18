@@ -35,13 +35,13 @@ export default function AddressBookPage() {
 
     if (status === "loading" || loading) {
         return (
-            <div className="min-h-screen flex flex-col w-full bg-[#fcfcfc] font-rubik">
-                <div className="flex flex-col lg:flex-row flex-1 w-full">
-                    <SidebarSkeleton />
-                    <main className="flex-1 min-w-0">
+            <div className="flex flex-col lg:flex-row flex-1 min-h-0 w-full bg-[#fcfcfc] font-rubik">
+                <SidebarSkeleton />
+                <main className="flex-1 p-4 md:p-6 lg:p-8 bg-[#fcfcfc] min-h-0">
+                    <div className="max-w-[1200px]">
                         <AddressBookSkeleton />
-                    </main>
-                </div>
+                    </div>
+                </main>
             </div>
         );
     }

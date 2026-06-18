@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { ShoppingCart, X, Star, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle, Info, Check, Filter, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import ProductDialog from "../components/ProductDialog";
 import ProductEnquiryModal from "../components/ProductEnquiryModal";
 import AddToCartPopup from "../components/AddToCartPopup";
@@ -97,6 +98,14 @@ export default function ProductsPage() {
   const { t, isRtl } = useTranslation();
   const lp = useLocalePath();
   const locale = useLocale();
+  // Authoritative Magento token comes from the NextAuth session (reactive — updates as
+  // soon as the session resolves). localStorage is a fallback only. Using the session
+  // token directly removes the race where this page loaded before ProtectedLayout had
+  // written localStorage.token, leaving products permanently unfetched.
+  const { data: session } = useSession();
+  const authToken =
+    (session as any)?.accessToken ||
+    (typeof window !== "undefined" ? localStorage.getItem("token") : null);
   const [searchParams, setSearchParamsState] = useState<URLSearchParams | null>(null);
   const handleParams = useCallback((sp: URLSearchParams) => setSearchParamsState(sp), []);
   const { cart, addToCart } = useCart();
@@ -115,6 +124,7 @@ export default function ProductsPage() {
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [selectedFilterLabels, setSelectedFilterLabels] = useState<Record<string, { value: string; label: string }[]>>({});
   const [apiFilters, setApiFilters] = useState<any[] | null>(null);
+  const [filtersLoading, setFiltersLoading] = useState<boolean>(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -137,8 +147,13 @@ export default function ProductsPage() {
     const stored = localStorage.getItem("favourites");
     if (stored) setFavIds(JSON.parse(stored));
     if (searchParams) {
+      // categoryId comes from the URL, then the menu-derived default (sessionStorage).
+      // When the menu is unavailable (e.g. WAF-blocked → no defaultCategoryId), fall back
+      // to the root catalog category so the list still renders instead of staying empty.
+      const DEFAULT_CATEGORY_ID = "5";
       const catId = searchParams.get("categoryId")
-        || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("defaultCategoryId") : null);
+        || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("defaultCategoryId") : null)
+        || DEFAULT_CATEGORY_ID;
       setCategoryId(catId);
       const { filters, page, sortBy } = parseMagentoQueryParams(searchParams);
       if (Object.keys(filters).length > 0) setSelectedFilters(filters);
@@ -184,17 +199,19 @@ export default function ProductsPage() {
 
   const toggleFavorite = async (product: any) => {
     const { product_id: productId } = product;
+    // Native wishlist add (addProductsToWishlist) requires a SKU, so send it alongside product_id.
+    const productSku = product?.sku || product?.item_code || "";
     const stored = localStorage.getItem("favourites");
     const favIds: number[] = stored ? JSON.parse(stored) : [];
     if (!favIds.includes(productId)) {
       favIds.push(productId);
       localStorage.setItem("favourites", JSON.stringify(favIds));
       setFavIds(favIds);
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const token = authToken;
       if (token) {
         const toastId = toast.loading("Adding to favorites...");
         try {
-          await api.post("/kleverapi/favorite-products", { product_id: productId });
+          await api.post("/kleverapi/favorite-products", { product_id: productId, sku: productSku });
           toast.success(t("favorites.cartAdded"), { id: toastId });
         } catch (err) {
           console.error("API favorite add error:", err);
@@ -208,6 +225,13 @@ export default function ProductsPage() {
   const [debouncedFilters, setDebouncedFilters] = useState(selectedFilters);
   const isFirstRender = useRef(true);
   const prevCategoryIdRef = useRef<string | null>(null);
+
+  // Stable value-key for the debounced filters. `debouncedFilters` changes object
+  // identity even when its value is unchanged (e.g. an empty {} replaced by a new
+  // empty {}), which previously re-fired the products fetch with identical params
+  // (a canceled duplicate request). Depending on this string instead keys the
+  // effect on VALUE, eliminating the duplicate (req #11).
+  const debouncedFiltersKey = useMemo(() => JSON.stringify(debouncedFilters), [debouncedFilters]);
 
   useEffect(() => {
     // On first render after init, apply filters immediately (no debounce)
@@ -229,6 +253,7 @@ export default function ProductsPage() {
       setCurrentPage(1);
       setSortBy("none");
       setApiFilters(null); // Reset filters for new category
+      setFiltersLoading(true);
     }
     prevCategoryIdRef.current = categoryId;
   }, [categoryId]);
@@ -247,7 +272,7 @@ export default function ProductsPage() {
       try {
         setLoading(true);
         setError("");
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const token = authToken;
         if (!token) return;
         let fetchLocale = "en";
         if (window.location.pathname.startsWith("/ar")) fetchLocale = "ar";
@@ -256,14 +281,18 @@ export default function ProductsPage() {
           if (cookieMatch?.[1] === "ar") fetchLocale = "ar";
         }
         const headers: HeadersInit = { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, "x-locale": fetchLocale };
-        const queryString = formatMagentoQueryParams(debouncedFilters, currentPage, sortBy);
-        const url = `/api/category-products?${queryString}&categoryId=${categoryId}&pageSize=${PAGE_SIZE}&lang=${fetchLocale}`;
+        const queryString = formatMagentoQueryParams(JSON.parse(debouncedFiltersKey), currentPage, sortBy);
+        // productsOnly=1 → backend skips the slow layered-nav filter pass.
+        // Filters are fetched independently below (see the filters effect).
+        const url = `/api/category-products?${queryString}&categoryId=${categoryId}&pageSize=${PAGE_SIZE}&lang=${fetchLocale}&productsOnly=1`;
+        const __t0 = performance.now();
         const res = await fetch(url, { headers, signal: abortController.signal });
         if (!res.ok) {
           if (res.status === 401) { localStorage.removeItem("token"); redirectToLogin(router); return; }
           throw new Error(`API Error: ${res.status}`);
         }
         const data = await res.json();
+        console.log(`[products-timing] category-products → ${res.status} in ${Math.round(performance.now() - __t0)}ms (X-Cache: ${res.headers.get("x-cache") || "n/a"})`);
         const productArray = Array.isArray(data.products) ? data.products : (Array.isArray(data.items) ? data.items : []);
         const total = typeof data.total_count === "number" ? data.total_count : productArray.length;
 
@@ -275,13 +304,12 @@ export default function ProductsPage() {
         });
 
         if (abortController.signal.aborted) return;
+        // Products render immediately — independent of the filters request.
         setProducts(mappedProducts);
         setTotalCount(total);
-        setApiFilters(data.filters || []); // Always set (even if empty) to stop loading state
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
         setError(t("products.noProducts"));
-        setApiFilters([]); // Stop filter loading on error
         console.error(err);
       } finally {
         if (!abortController.signal.aborted) setLoading(false);
@@ -289,7 +317,44 @@ export default function ProductsPage() {
     };
     loadProducts();
     return () => abortController.abort();
-  }, [router, currentPage, debouncedFilters, sortBy, isInitialized, categoryId]);
+  }, [router, currentPage, debouncedFiltersKey, sortBy, isInitialized, categoryId, authToken]);
+
+  // ── Filters: fetched independently of products so the list never waits on them.
+  // Depends only on categoryId/locale (NOT page/sort/selectedFilters) → one request
+  // per category, no refetch on pagination/sort/filter changes (req #1, #5, #11).
+  useEffect(() => {
+    if (!isInitialized || !categoryId) return;
+    const abortController = new AbortController();
+    const loadFilters = async () => {
+      try {
+        setFiltersLoading(true);
+        const token = authToken;
+        if (!token) return;
+        let fetchLocale = "en";
+        if (window.location.pathname.startsWith("/ar")) fetchLocale = "ar";
+        else {
+          const cookieMatch = document.cookie.match(/NEXT_LOCALE=([^;]+)/);
+          if (cookieMatch?.[1] === "ar") fetchLocale = "ar";
+        }
+        const headers: HeadersInit = { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, "x-locale": fetchLocale };
+        const __t0 = performance.now();
+        const res = await fetch(`/api/category-filter-options?categoryId=${categoryId}&lang=${fetchLocale}`, { headers, signal: abortController.signal });
+        if (!res.ok) throw new Error(`API Error: ${res.status}`);
+        const data = await res.json();
+        console.log(`[products-timing] category-filter-options → ${res.status} in ${Math.round(performance.now() - __t0)}ms (X-Cache: ${res.headers.get("x-cache") || "n/a"})`);
+        if (abortController.signal.aborted) return;
+        setApiFilters(Array.isArray(data.filters) ? data.filters : []);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setApiFilters([]); // stop the filter loading state on error
+        console.error("[products] filter-options error:", err);
+      } finally {
+        if (!abortController.signal.aborted) setFiltersLoading(false);
+      }
+    };
+    loadFilters();
+    return () => abortController.abort();
+  }, [categoryId, isInitialized, locale, authToken]);
 
   const handleFilterChange = useCallback(
     (filters: Record<string, string[]>, labels: Record<string, { value: string; label: string }[]>) => {
@@ -462,7 +527,7 @@ export default function ProductsPage() {
                   className={`h-9 px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] font-black uppercase shadow-sm active:scale-95 cursor-pointer flex-shrink-0 ${justAdded === product.sku ? "bg-green-500 text-white" : "bg-[#f5b21a] text-black"}`}
                 >
                   {addingToCart === product.sku ? (
-                    <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                    <span>{t("common.loading")}</span>
                   ) : justAdded === product.sku ? (
                     <><Check size={14} strokeWidth={3} /> {t("favorites.cartAdded")}</>
                   ) : (
@@ -525,7 +590,7 @@ export default function ProductsPage() {
             selectedFilters={selectedFilters}
             isCollapsed={isSidebarCollapsed}
             setIsCollapsed={setIsSidebarCollapsed}
-            initialFilters={apiFilters}
+            initialFilters={filtersLoading ? null : apiFilters}
           />
         </div>
 
@@ -541,7 +606,7 @@ export default function ProductsPage() {
             <div className="flex-1 overflow-y-auto">
               {/* Render SidebarFilter content directly — override its aside wrapper via CSS */}
               <div className="[&>aside]:!w-full [&>aside]:!h-auto [&>aside]:!static [&>aside]:!border-0 [&>aside]:!overflow-visible [&>aside>div]:!static [&>aside>div]:!h-auto [&>aside>div:first-child]:!hidden">
-                <SidebarFilter onFilterChange={(f, l) => { handleFilterChange(f, l); setIsMobileFilterOpen(false); }} selectedFilters={selectedFilters} isCollapsed={false} setIsCollapsed={() => { }} initialFilters={apiFilters} />
+                <SidebarFilter onFilterChange={(f, l) => { handleFilterChange(f, l); setIsMobileFilterOpen(false); }} selectedFilters={selectedFilters} isCollapsed={false} setIsCollapsed={() => { }} initialFilters={filtersLoading ? null : apiFilters} />
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 flex-shrink-0">
@@ -752,7 +817,7 @@ export default function ProductsPage() {
                                   {/* Col 2: Cart or Enquiry */}
                                   {!isOutOfStock ? (
                                     <button onClick={() => handleAddToCart(product)} disabled={addingToCart === product.sku} className={`w-8 h-8 rounded-md flex items-center justify-center shadow-md hover:-translate-y-0.5 transition-all cursor-pointer ${justAdded === product.sku ? "bg-green-500 text-white" : "bg-yellow-400 text-black hover:bg-yellow-500"}`}>
-                                      {addingToCart === product.sku ? <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div> : justAdded === product.sku ? <Check size={15} strokeWidth={3} /> : <ShoppingCart size={15} strokeWidth={2.5} />}
+                                      {justAdded === product.sku ? <Check size={15} strokeWidth={3} /> : <ShoppingCart size={15} strokeWidth={2.5} />}
                                     </button>
                                   ) : (
                                     <button onClick={() => { setInquiryProduct(product); setIsInquiryModalOpen(true); }} className="w-8 h-8 bg-yellow-400 hover:bg-yellow-500 text-black rounded-md flex items-center justify-center shadow-md active:scale-95 cursor-pointer"><Info size={15} strokeWidth={2.5} /></button>

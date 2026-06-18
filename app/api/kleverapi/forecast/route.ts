@@ -1,135 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/auth-options';
+import { getLocaleFromRequest } from '@/lib/api/magento-url';
+import { getRequestToken } from '@/lib/api/auth-helper';
+import { KLEVER_FORECAST_LIST_QUERY } from '@/src/graphql/queries';
+import { KLEVER_UPLOAD_FORECAST_MUTATION } from '@/src/graphql/mutations';
 
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
+
+// GET — forecast file list (GraphQL: kleverForecastList(pageSize, currentPage)).
+// Replaces REST /forecast. Returns { items[{forecast_id, file_name, file_url,
+// uploaded_date}], total_count, page_size, current_page, total_pages, message }.
 export async function GET(request: NextRequest) {
     try {
-        const baseUrl = getBaseUrl(request);
-        // Step 1: Get token
-        let token: string | null = null;
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: 'Authentication required.' }, { status: 401 });
 
-        const authHeader = request.headers.get('Authorization');
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.substring(7).replace(/['"]/g, '').trim();
-        }
-
-        if (!token || token === 'null') {
-            const cookie = request.cookies.get('auth-token')?.value;
-            if (cookie) token = cookie.replace(/['"]/g, '').trim();
-        }
-
-        if (!token || token === 'null') {
-            const session: any = await getServerSession(authOptions);
-            token = session?.accessToken;
-        }
-
-        if (!token) {
-            return NextResponse.json({ message: 'Authentication required.' }, { status: 401 });
-        }
-
-        // Step 2: Forward query parameters
         const { searchParams } = new URL(request.url);
-        const pageSize = searchParams.get('pageSize') || '10';
-        const currentPage = searchParams.get('currentPage') || '1';
+        const pageSize = parseInt(searchParams.get('pageSize') || '10', 10) || 10;
+        const currentPage = parseInt(searchParams.get('currentPage') || '1', 10) || 1;
 
-        const magentoUrl = `${baseUrl}/forecast?pageSize=${pageSize}&currentPage=${currentPage}`;
-
-        console.log('[forecast] Fetching:', magentoUrl);
-
-        // Step 3: Fetch from Magento
-        const res = await fetch(magentoUrl, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: 'POST',
             headers: {
-                Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
+                Store: getLocaleFromRequest(request),
+                Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ query: KLEVER_FORECAST_LIST_QUERY, variables: { pageSize, currentPage } }),
             cache: 'no-store',
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error('[forecast] Magento error:', res.status, errBody);
-            return NextResponse.json(
-                { message: 'Failed to fetch forecast files', details: errBody },
-                { status: res.status }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error('[forecast] GraphQL error:', JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: 'Failed to fetch forecast files', details: json.errors }, { status: 502 });
         }
 
-        const data = await res.json();
-        // The data might be an array or { items: [], total_count: ... }
-        // Let's return it as is, but we might need to handle it in the frontend
-        return NextResponse.json(data);
-
+        const r = json?.data?.kleverForecastList;
+        return NextResponse.json({
+            items: Array.isArray(r?.items) ? r.items : [],
+            total_count: r?.total_count ?? 0,
+            page_size: r?.page_size ?? pageSize,
+            current_page: r?.current_page ?? currentPage,
+            total_pages: r?.total_pages ?? 0,
+            message: r?.message ?? null,
+        });
     } catch (error: any) {
         console.error('[forecast] Error:', error.message);
-        return NextResponse.json(
-            { message: 'Internal Server Error', error: error.message },
-            { status: 500 }
-        );
+        return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
     }
 }
 
+// POST — upload a forecast file (GraphQL: kleverUploadForecast(fileName, fileContent)).
+// The client posts multipart FormData with a `file`; the route reads it, base64-encodes the
+// bytes, and sends fileName + fileContent. Returns the refreshed list { items, total_count,
+// message } (the page just checks res.ok then re-pulls). NOT executed during migration —
+// upload op; schema-validated + tsc only.
 export async function POST(request: NextRequest) {
     try {
-        const baseUrl = getBaseUrl(request);
-        // Step 1: Get token
-        let token: string | null = null;
-        const authHeader = request.headers.get('Authorization');
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.substring(7).replace(/['"]/g, '').trim();
-        }
+        const token = await getRequestToken(request);
+        if (!token) return NextResponse.json({ message: 'Authentication required.' }, { status: 401 });
 
-        if (!token || token === 'null') {
-            const session: any = await getServerSession(authOptions);
-            token = session?.accessToken;
-        }
-
-        if (!token) {
-            return NextResponse.json({ message: 'Authentication required.' }, { status: 401 });
-        }
-
-        // Step 2: Build Magento Upload URL
-        const magentoUrl = `${baseUrl}/forecast/upload`;
-
-        console.log('[forecast-upload] Proxying to:', magentoUrl);
-
-        // Step 3: Forward the request body (which is FormData)
-        // We shouldn't set Content-Type manually for FormData, fetch will do it with the correct boundary
         const formData = await request.formData();
+        const file = formData.get('file');
+        if (!file || typeof file === 'string') {
+            return NextResponse.json({ message: 'file is required' }, { status: 400 });
+        }
 
-        // Re-construct the FormData for the outgoing request
-        const outputFormData = new FormData();
-        formData.forEach((value, key) => {
-            outputFormData.append(key, value);
-        });
+        const fileName = (file as File).name;
+        const fileContent = Buffer.from(await (file as File).arrayBuffer()).toString('base64');
 
-        const res = await fetch(magentoUrl, {
+        const res = await fetch(MAGENTO_GRAPHQL, {
             method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
+                Store: getLocaleFromRequest(request),
                 Authorization: `Bearer ${token}`,
-                // 'Content-Type': 'multipart/form-data' is omitted so fetch adds the boundary
             },
-            body: outputFormData,
+            body: JSON.stringify({ query: KLEVER_UPLOAD_FORECAST_MUTATION, variables: { fileName, fileContent } }),
+            cache: 'no-store',
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error('[forecast-upload] Magento error:', res.status, errBody);
-            return NextResponse.json(
-                { message: 'Upload failed', details: errBody },
-                { status: res.status }
-            );
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error('[forecast-upload] GraphQL error:', JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || 'Upload failed' }, { status: 400 });
         }
 
-        const data = await res.json();
-        return NextResponse.json(data);
-
+        const r = json?.data?.kleverUploadForecast;
+        return NextResponse.json({
+            items: Array.isArray(r?.items) ? r.items : [],
+            total_count: r?.total_count ?? 0,
+            message: r?.message ?? null,
+        });
     } catch (error: any) {
         console.error('[forecast-upload] Error:', error.message);
-        return NextResponse.json(
-            { message: 'Internal Server Error', error: error.message },
-            { status: 500 }
-        );
+        return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
     }
 }
 

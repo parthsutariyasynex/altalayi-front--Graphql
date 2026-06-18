@@ -91,7 +91,7 @@ export default function BusinessOverviewEditModal({ isOpen, onClose, initialData
                             <input
                                 type="text"
                                 className={inputClass}
-                                value={formData.total_employees}
+                                // value={formData.total_employees}
                                 onChange={(e) => setFormData({ ...formData, total_employees: e.target.value })}
                                 placeholder="e.g. 501"
                             />
@@ -102,7 +102,7 @@ export default function BusinessOverviewEditModal({ isOpen, onClose, initialData
                             <input
                                 type="text"
                                 className={inputClass}
-                                value={formData.trucks}
+                                // value={formData.trucks}
                                 onChange={(e) => setFormData({ ...formData, trucks: e.target.value })}
                                 placeholder="e.g. 100"
                             />
@@ -113,7 +113,7 @@ export default function BusinessOverviewEditModal({ isOpen, onClose, initialData
                             <input
                                 type="text"
                                 className={inputClass}
-                                value={formData.annual_revenue}
+                                // value={formData.annual_revenue}
                                 onChange={(e) => setFormData({ ...formData, annual_revenue: e.target.value })}
                                 placeholder="e.g. 5000000"
                             />
@@ -124,7 +124,7 @@ export default function BusinessOverviewEditModal({ isOpen, onClose, initialData
                             <input
                                 type="text"
                                 className={inputClass}
-                                value={formData.business_model}
+                                // value={formData.business_model}
                                 onChange={(e) => setFormData({ ...formData, business_model: e.target.value })}
                                 placeholder="e.g. B2B"
                             />
@@ -135,7 +135,7 @@ export default function BusinessOverviewEditModal({ isOpen, onClose, initialData
                             <input
                                 type="text"
                                 className={inputClass}
-                                value={formData.products_offered}
+                                // value={formData.products_offered}
                                 onChange={(e) => setFormData({ ...formData, products_offered: e.target.value })}
                                 placeholder="e.g. Tyres and Wheels"
                             />

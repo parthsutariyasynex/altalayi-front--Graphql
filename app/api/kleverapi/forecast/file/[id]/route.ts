@@ -1,123 +1,70 @@
 import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/api/magento-url';
+import { getLocaleFromRequest } from '@/lib/api/magento-url';
+import { KLEVER_FORECAST_FILE_QUERY } from '@/src/graphql/queries';
 
-// BASE_URL is now obtained per-request via getBaseUrl(request)
+const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
 
-// Fix double slashes in URL path (but preserve https://)
-function fixUrl(url: string): string {
-    return url.replace(/(https?:\/\/)|(\/)+/g, (match, protocol) => protocol || '/');
-}
-
-async function tryFetchFile(url: string, headers: Record<string, string> = {}): Promise<Response | null> {
-    console.log('[ForecastDownload] Trying:', url);
-
-    try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers,
-            cache: 'no-store',
-        });
-
-        if (!response.ok) {
-            console.log('[ForecastDownload] Failed:', response.status, url);
-            return null;
-        }
-
-        const contentType = response.headers.get('content-type') || 'application/octet-stream';
-
-        // Check if we got HTML instead of file
-        if (contentType.includes('text/html')) {
-            console.log('[ForecastDownload] Got HTML, skipping:', url);
-            return null;
-        }
-
-        return response;
-    } catch (err) {
-        console.log('[ForecastDownload] Fetch error for:', url, err);
-        return null;
-    }
-}
-
+// GET — download a forecast file. Pure GraphQL: kleverForecastFile(forecastId) returns
+// { success, filename, mime_type, base64 }; we decode the base64 and stream it as an attachment
+// (same download UX as the old REST/blob proxy). The path `id` is the forecast_id.
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const BASE_URL = getBaseUrl(request);
         const { id } = await params;
-        const authHeader = request.headers.get('Authorization');
+        const forecastId = parseInt(id, 10);
+        if (Number.isNaN(forecastId)) {
+            return NextResponse.json({ message: 'Invalid forecast id' }, { status: 400 });
+        }
 
+        const authHeader = request.headers.get('Authorization');
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return NextResponse.json({ message: 'Unauthorized: Missing customer token' }, { status: 401 });
+        }
+
+        // Optional filename override from the query (kept for backward-compat with callers).
+        const fallbackName = new URL(request.url).searchParams.get('file_name') || 'forecast';
+
+        const res = await fetch(MAGENTO_GRAPHQL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Store: getLocaleFromRequest(request),
+                Authorization: authHeader,
+            },
+            body: JSON.stringify({ query: KLEVER_FORECAST_FILE_QUERY, variables: { forecastId } }),
+            cache: 'no-store',
+        });
+
+        const json = await res.json();
+        if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            console.error('[forecast/file] GraphQL error:', JSON.stringify(json.errors).slice(0, 300));
+            return NextResponse.json({ message: json.errors[0]?.message || 'Unable to open forecast file.' }, { status: 502 });
+        }
+
+        const file = json?.data?.kleverForecastFile;
+        if (!file || file.success === false || !file.base64) {
             return NextResponse.json(
-                { message: 'Unauthorized: Missing customer token' },
-                { status: 401 }
+                { message: 'Unable to open forecast file. File not accessible.' },
+                { status: 404 }
             );
         }
 
-        const { searchParams } = new URL(request.url);
-        const fileName = searchParams.get('file_name');
-        const fileUrl = searchParams.get('url');
-        const origin = new URL(BASE_URL || 'https://altalayi-demo.btire.com').origin;
+        const buffer = Buffer.from(file.base64, 'base64');
+        const filename = file.filename || fallbackName;
+        const mime = file.mime_type || 'application/octet-stream';
 
-        console.log('[ForecastDownload] ID:', id, 'File Name:', fileName, 'URL:', fileUrl);
-
-        // Build list of URLs to try
-        const urlsToTry: string[] = [];
-
-        // 1. Precise provided URL if available
-        if (fileUrl) {
-            urlsToTry.push(fixUrl(fileUrl));
-        }
-
-        // 2. Magento direct download endpoint if it exists
-        urlsToTry.push(`${BASE_URL}/forecast/download/${id}`);
-
-        // 3. Fallback: Common Media paths
-        if (fileName) {
-            urlsToTry.push(`${origin}/media/orderupload/${fileName}`);
-            urlsToTry.push(`${origin}/pub/media/orderupload/${fileName}`);
-            urlsToTry.push(`${origin}/media/forecast/${fileName}`);
-            urlsToTry.push(`${origin}/pub/media/forecast/${fileName}`);
-        }
-
-        // Try each URL
-        for (const url of urlsToTry) {
-            // Use auth header for API endpoints
-            const isApiUrl = url.includes('/rest/') || url.includes('/download/');
-            const headers: Record<string, string> = isApiUrl
-                ? { Authorization: authHeader, platform: 'web' }
-                : {};
-
-            const res = await tryFetchFile(url, headers);
-            if (res) {
-                const contentType = res.headers.get('content-type') || 'application/octet-stream';
-                const blob = await res.blob();
-
-                if (blob.size === 0) continue;
-
-                console.log('[ForecastDownload] Success! URL:', url, 'Type:', contentType);
-
-                return new Response(blob, {
-                    status: 200,
-                    headers: {
-                        'Content-Type': contentType,
-                        'Content-Length': blob.size.toString(),
-                        'Content-Disposition': `attachment; filename="${fileName || 'forecast'}"`,
-                    },
-                });
-            }
-        }
-
-        return NextResponse.json(
-            { message: 'Unable to open forecast file. File not accessible.' },
-            { status: 404 }
-        );
-
+        return new Response(buffer, {
+            status: 200,
+            headers: {
+                'Content-Type': mime,
+                'Content-Length': String(buffer.length),
+                'Content-Disposition': `attachment; filename="${filename}"`,
+            },
+        });
     } catch (error: any) {
-        console.error('[ForecastDownload] Catch error:', error);
-        return NextResponse.json(
-            { message: error.message || 'Server error downloading file' },
-            { status: 500 }
-        );
+        console.error('[forecast/file] error:', error.message);
+        return NextResponse.json({ message: error.message || 'Server error downloading file' }, { status: 500 });
     }
 }

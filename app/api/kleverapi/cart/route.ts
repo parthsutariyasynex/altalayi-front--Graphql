@@ -2,8 +2,22 @@ import { NextResponse } from "next/server";
 import { getLocaleFromRequest } from "@/lib/api/magento-url";
 import { getRequestToken } from "@/lib/api/auth-helper";
 import { CUSTOMER_CART_QUERY } from "@/src/graphql/queries";
+import { clearCustomerCartId } from "@/lib/api/customer-cart";
 
 const MAGENTO_GRAPHQL = (process.env.NEXT_PUBLIC_MAGENTO_BASE_URL || "https://altalayi-demo.btire.com") + "/graphql";
+
+// Canonical empty-cart payload (matches the CartContext shape). Returned for guests and
+// for expired/invalid tokens so the UI shows an empty cart instead of an error/logout.
+const EMPTY_CART = {
+    items: [],
+    items_count: 0,
+    subtotal: 0,
+    tax_amount: 0,
+    tax_label: "Tax",
+    grand_total: 0,
+    currency_code: "SAR",
+    cart_id: null,
+};
 
 // The cart item `id` is the numeric quote item id (also what removeItemFromCart /
 // updateCartItems take as cart_item_id). cart_item_uid is its base64 form, returned
@@ -45,7 +59,8 @@ function parseDisplays(name: string): { size_display: string; pattern_display: s
 export async function GET(req: Request) {
     try {
         const token = await getRequestToken(req);
-        if (!token) return NextResponse.json({ message: "Unauthorized: Missing customer token" }, { status: 401 });
+        // Guest (no token) → empty cart, not 401. The cart UI should render empty, not error.
+        if (!token) return NextResponse.json(EMPTY_CART);
 
         const res = await fetch(MAGENTO_GRAPHQL, {
             method: "POST",
@@ -56,12 +71,21 @@ export async function GET(req: Request) {
 
         const json = await res.json();
         if (Array.isArray(json?.errors) && json.errors.length > 0) {
+            const msg = json.errors.map((e: any) => e?.message || "").join(" ");
+            // "The request is allowed for logged in customer" = the token is missing/expired,
+            // i.e. an auth state, NOT a server failure. Return an empty cart (200) and drop the
+            // stale cached cart id so the UI degrades gracefully instead of 502-ing / logging out.
+            if (/logged in customer|not authorized|current customer/i.test(msg)) {
+                console.warn("[cart] customer not logged in (expired/invalid token) — returning empty cart");
+                clearCustomerCartId(token);
+                return NextResponse.json(EMPTY_CART);
+            }
             console.error("[cart] GraphQL error:", JSON.stringify(json.errors).slice(0, 300));
             return NextResponse.json({ message: "Magento GraphQL error", details: json.errors }, { status: 502 });
         }
 
         const cart = json?.data?.customerCart;
-        if (!cart) return NextResponse.json({ items: [], items_count: 0, subtotal: 0, tax_amount: 0, tax_label: "Tax", grand_total: 0, currency_code: "SAR", cart_id: null });
+        if (!cart) return NextResponse.json(EMPTY_CART);
 
         const items = (Array.isArray(cart.items) ? cart.items : []).map((it: any) => {
             const name = it.product?.name ?? "";

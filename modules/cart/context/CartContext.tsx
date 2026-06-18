@@ -8,7 +8,8 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { getSession, signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { getAuthToken } from "@/lib/api/api-client";
 
 export interface CartItem {
   item_id: number;
@@ -47,23 +48,10 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-async function getAuthToken(): Promise<string | null> {
-  // Try NextAuth session first
-  const session: any = await getSession();
-
-  // If session is definitively null, user is logged out — don't use localStorage
-  if (session === null) return null;
-
-  if (session?.accessToken) return session.accessToken;
-
-  // Fallback: localStorage (may be set before NextAuth session syncs on first load)
-  if (typeof window !== "undefined") {
-    const localToken = localStorage.getItem("token");
-    if (localToken) return localToken;
-  }
-
-  return null;
-}
+// Token resolution is delegated to the shared, cached getAuthToken in api-client
+// so the cart no longer fires its own /api/auth/session request — it reuses the
+// same deduped/cached session lookup as every other API call. Stale tokens are
+// still caught reactively via the 401/403 handler below (handleAuthError).
 
 function isAuthError(status: number): boolean {
   return status === 401 || status === 403;
@@ -78,6 +66,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { status } = useSession();
 
   const fetchCart = useCallback(async (showLoader = true, _retry = 0) => {
     try {
@@ -157,9 +146,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Hydrate the cart once the session is resolved. On a fresh load/refresh the auth token isn't
+  // ready on first mount, so fetching immediately gets a null token and leaves the header count
+  // empty until an add-to-cart event fires. Gate on session status: fetch when authenticated
+  // (single call, valid token → existing cart count shows on first paint), clear when not.
   useEffect(() => {
-    fetchCart();
-  }, [fetchCart]);
+    if (status === "loading") return;
+    if (status === "authenticated") {
+      fetchCart();
+    } else {
+      setCart(null);
+    }
+  }, [status, fetchCart]);
 
   // Re-fetch cart when locale changes (cart labels come from Magento in locale)
   useEffect(() => {
